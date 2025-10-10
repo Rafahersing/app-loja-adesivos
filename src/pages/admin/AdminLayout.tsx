@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"; // Adicionado useNavigate
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
@@ -8,12 +8,50 @@ import {
   LogOut,
   Menu,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Adicionado useEffect
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { supabase } from "@/lib/utils"; // 🚨 IMPORTANTE: Importar o cliente Supabase
 
 const AdminLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate(); // Hook para redirecionamento
+  const [isLoading, setIsLoading] = useState(true); // Novo estado para controle de loading
+  const [isAdmin, setIsAdmin] = useState(false); // Novo estado para o status de admin
   const [isOpen, setIsOpen] = useState(false);
+
+  // -------------------------------------------------------------------
+  // 🚨 LÓGICA DE VERIFICAÇÃO DE ADMINISTRAÇÃO (CORREÇÃO AQUI)
+  // -------------------------------------------------------------------
+  useEffect(() => {
+    async function checkAdmin() {
+      const { data: { user }, error } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        // Usuário não logado ou erro: redireciona para a autenticação
+        navigate('/auth'); 
+        return;
+      }
+
+      // Verifica a flag 'is_admin' nos metadados do aplicativo
+      const userIsAdmin = user.app_metadata.is_admin === true;
+      setIsAdmin(userIsAdmin);
+      setIsLoading(false);
+
+      if (!userIsAdmin) {
+        // Usuário logado, mas NÃO é administrador: redireciona para a Home
+        navigate('/');
+      }
+    }
+    checkAdmin();
+  }, [navigate]); // Roda apenas uma vez ao carregar
+
+  // -------------------------------------------------------------------
+  // LOGOUT
+  // -------------------------------------------------------------------
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth'); // Redireciona para a tela de login
+  };
 
   const navigation = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -43,8 +81,30 @@ const AdminLayout = () => {
           </Button>
         </Link>
       ))}
+      <Button
+        variant="ghost"
+        className="w-full justify-start text-red-500 hover:text-red-600"
+        onClick={handleLogout} // Adicionado o handleLogout aqui também
+      >
+        <LogOut className="h-5 w-5 mr-3" />
+        Sair
+      </Button>
     </nav>
   );
+
+  // -------------------------------------------------------------------
+  // Renderização
+  // -------------------------------------------------------------------
+  // Se estiver carregando, mostra um loader simples ou tela em branco
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Verificando Permissões...</div>;
+  }
+
+  // Se não for admin, o useEffect já redirecionou. Não deve chegar aqui, 
+  // mas é uma checagem de segurança extra.
+  if (!isAdmin) {
+    return null; 
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -52,6 +112,7 @@ const AdminLayout = () => {
       <header className="sticky top-0 z-50 border-b bg-background">
         <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            {/* ... Seu código SheetTrigger e SheetContent ... */}
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="lg:hidden">
                 <Menu className="h-5 w-5" />
@@ -91,7 +152,7 @@ const AdminLayout = () => {
                 Ver Loja
               </Link>
             </Button>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={handleLogout}> 
               <LogOut className="h-5 w-5" />
             </Button>
           </div>
