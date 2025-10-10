@@ -17,6 +17,8 @@ import Products from "./pages/admin/Products";
 import Orders from "./pages/admin/Orders";
 import Users from "./pages/admin/Users";
 import NotFound from "./pages/NotFound";
+// 🚨 NOVA IMPORTAÇÃO: O componente que irá proteger suas rotas.
+import RequireAdmin from "@/components/layout/RequireAdmin"; 
 
 const queryClient = new QueryClient();
 
@@ -38,12 +40,15 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
           </Route>
 
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="products" element={<Products />} />
-            <Route path="orders" element={<Orders />} />
-            <Route path="users" element={<Users />} />
+          {/* 🚨 ROTAS ADMIN PROTEGIDAS (A MUDANÇA ESTÁ AQUI) */}
+          {/* O RequireAdmin verifica o acesso ANTES de renderizar o AdminLayout */}
+          <Route element={<RequireAdmin />}>
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="products" element={<Products />} />
+              <Route path="orders" element={<Orders />} />
+              <Route path="users" element={<Users />} />
+            </Route>
           </Route>
 
           {/* Catch-all */}
