@@ -11,16 +11,16 @@ export function cn(...inputs: ClassValue[]) {
 // Configuração do Supabase
 // ----------------------------------------------------------------------
 
-// 1. Variáveis de ambiente (lidas automaticamente do Vercel)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// MUDANÇA AQUI: Lendo variáveis com o prefixo VITE_PUBLIC_
+const supabaseUrl = process.env.VITE_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 
-// 2. Verificação de segurança: Lança um erro se as chaves não estiverem configuradas
+// Verificação de segurança
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
-    'As variáveis de ambiente do Supabase (NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY) devem ser definidas no Vercel!'
+    'As variáveis de ambiente do Supabase devem ser definidas no Vercel!'
   );
 }
 
-// 3. Cria e exporta o cliente Supabase
+// Cria e exporta o cliente Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
