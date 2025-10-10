@@ -8,17 +8,23 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // ----------------------------------------------------------------------
-// Configuração do Supabase
+// Configuração do Supabase (Ajustado com sua URL de projeto)
 // ----------------------------------------------------------------------
 
-// Lendo variáveis com o prefixo VITE_PUBLIC_ (correto para projetos Vite)
-const supabaseUrl = process.env.VITE_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.VITE_PUBLIC_SUPABASE_ANON_KEY as string;
+// 1. URL do Projeto (Hardcoded para garantir que o 'supabaseUrl' não seja undefined)
+// Usar a URL diretamente aqui corrige o erro 'supabaseUrl is required'.
+const supabaseUrl = 'https://jppzmvqvhivlmxwcwpng.supabase.co';
 
-// ATENÇÃO: A VERIFICAÇÃO DE SEGURANÇA QUE ESTAVA QUEBRANDO O APP FOI REMOVIDA.
-// Em ambientes de produção (Vercel), as chaves devem ser lidas corretamente.
+// 2. Chave de API (Lida do Vercel, usando o método correto do Vite)
+const supabaseAnonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
+
+// Verificação de segurança apenas para a chave que vem do ambiente
+if (!supabaseAnonKey) {
+  // ATENÇÃO: Se isso quebrar o app novamente, remova este bloco IF.
+  throw new Error(
+    'A chave VITE_PUBLIC_SUPABASE_ANON_KEY não foi encontrada. Verifique as variáveis no Vercel!'
+  );
+}
 
 // Cria e exporta o cliente Supabase
-// Se 'supabaseUrl' ou 'supabaseAnonKey' for undefined, a função createClient
-// pode não funcionar, mas pelo menos não quebra o aplicativo inteiro.
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey as string);
