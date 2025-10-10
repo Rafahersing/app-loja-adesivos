@@ -1,21 +1,32 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react"; // Adicionado useEffect
+import { Link, useNavigate } from "react-router-dom"; // Adicionado useNavigate
 import { User, Package, Download, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner"; // Para exibir mensagens
+import { supabase } from "../lib/utils"; // Importa sua conexão Supabase
+
+// Define a estrutura para os dados do usuário
+interface UserProfile {
+  name: string;
+  email: string;
+  whatsapp: string;
+  instagram: string;
+}
 
 const Account = () => {
-  // TODO: Substituir por dados reais do backend
-  const [user] = useState({
-    name: "Usuário Teste",
-    email: "usuario@exemplo.com",
-    whatsapp: "(11) 99999-9999",
-    instagram: "@usuario",
+  const navigate = useNavigate();
+  const [user, setUser] = useState<UserProfile>({
+    name: "Carregando...",
+    email: "",
+    whatsapp: "",
+    instagram: "",
   });
 
+  // Dados de pedidos (Mantido como mock por enquanto)
   const [orders] = useState([
     {
       id: "1",
@@ -39,6 +50,54 @@ const Account = () => {
     },
   ]);
 
+  // -----------------------------------------------------------
+  // Lógica de Carregamento de Dados (useEffect)
+  // -----------------------------------------------------------
+  useEffect(() => {
+    async function loadUserData() {
+      // 1. Pega a sessão do usuário logado
+      const { data: { user }, error } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        // Se não estiver logado, redireciona para a página de autenticação
+        toast.info("Você precisa estar logado para acessar esta página.");
+        navigate("/auth");
+        return;
+      }
+
+      // 2. Extrai os dados, priorizando os metadados do cadastro
+      const metadata = user.user_metadata || {};
+      
+      setUser({
+        name: metadata.full_name || user.email.split('@')[0], // Usa nome completo ou parte do email
+        email: user.email || '',
+        whatsapp: metadata.whatsapp || 'N/A',
+        instagram: metadata.instagram || 'N/A',
+      });
+    }
+
+    loadUserData();
+  }, [navigate]); // Adicionamos navigate como dependência
+
+  // -----------------------------------------------------------
+  // Lógica de Logout
+  // -----------------------------------------------------------
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      toast.error(`Erro ao sair: ${error.message}`);
+    } else {
+      toast.success("Você foi desconectado com sucesso!");
+      // Redireciona para a página inicial ou de login
+      navigate("/"); 
+    }
+  };
+
+
+  // -----------------------------------------------------------
+  // Renderização
+  // -----------------------------------------------------------
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -75,7 +134,13 @@ const Account = () => {
               Configurações
             </Button>
             <Separator className="my-2" />
-            <Button variant="ghost" className="w-full justify-start text-destructive">
+            
+            {/* Botão de Sair (Logout) */}
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-destructive"
+              onClick={handleLogout} // Adicionado o handler de logout
+            >
               <LogOut className="h-4 w-4 mr-2" />
               Sair
             </Button>
@@ -98,6 +163,7 @@ const Account = () => {
                     <label className="text-sm font-medium text-muted-foreground">
                       Nome Completo
                     </label>
+                    {/* Exibe o dado real do estado */}
                     <p className="text-lg">{user.name}</p>
                   </div>
                   <Separator />
@@ -105,6 +171,7 @@ const Account = () => {
                     <label className="text-sm font-medium text-muted-foreground">
                       Email
                     </label>
+                    {/* Exibe o dado real do estado */}
                     <p className="text-lg">{user.email}</p>
                   </div>
                   <Separator />
@@ -112,6 +179,7 @@ const Account = () => {
                     <label className="text-sm font-medium text-muted-foreground">
                       WhatsApp
                     </label>
+                    {/* Exibe o dado real do estado */}
                     <p className="text-lg">{user.whatsapp}</p>
                   </div>
                   <Separator />
@@ -119,6 +187,7 @@ const Account = () => {
                     <label className="text-sm font-medium text-muted-foreground">
                       Instagram
                     </label>
+                    {/* Exibe o dado real do estado */}
                     <p className="text-lg">{user.instagram}</p>
                   </div>
                 </div>
