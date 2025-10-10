@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Adicionado useNavigate
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,28 +6,78 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { supabase } from "../lib/utils"; // Importa sua conexão Supabase
 
 const Auth = () => {
+  const navigate = useNavigate(); // Inicializa o useNavigate
   const [isLoading, setIsLoading] = useState(false);
+
+  // Estados para o Login
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  // Estados para o Cadastro
+  const [registerName, setRegisterName] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
+  const [registerWhatsapp, setRegisterWhatsapp] = useState("");
+  const [registerInstagram, setRegisterInstagram] = useState("");
+
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    // TODO: Implementar lógica de login com Lovable Cloud
-    setTimeout(() => {
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password: loginPassword,
+    });
+
+    setIsLoading(false);
+
+    if (error) {
+      toast.error(`Erro ao fazer login: ${error.message}`);
+    } else {
       toast.success("Login realizado com sucesso!");
-      setIsLoading(false);
-    }, 1000);
+      // REDIRECIONAMENTO após o login
+      navigate("/account"); 
+    }
   };
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    // TODO: Implementar lógica de registro com Lovable Cloud
-    setTimeout(() => {
-      toast.success("Conta criada com sucesso!");
+
+    if (registerPassword !== registerConfirmPassword) {
+      toast.error("As senhas não coincidem!");
       setIsLoading(false);
-    }, 1000);
+      return;
+    }
+
+    // 1. Tenta o cadastro com email e senha
+    const { error } = await supabase.auth.signUp({
+      email: registerEmail,
+      password: registerPassword,
+      options: {
+        // 2. Armazena os outros dados no user_metadata
+        data: {
+          full_name: registerName,
+          whatsapp: registerWhatsapp,
+          instagram: registerInstagram,
+        },
+      },
+    });
+
+    setIsLoading(false);
+
+    if (error) {
+      toast.error(`Erro ao criar conta: ${error.message}`);
+    } else {
+      toast.success("Conta criada com sucesso! Verifique seu email para confirmar.");
+      // REDIRECIONAMENTO após o cadastro (Supabase envia email de confirmação por padrão)
+      navigate("/"); // Volta para a home ou página de sucesso
+    }
   };
 
   return (
@@ -56,6 +106,8 @@ const Auth = () => {
                     type="email"
                     placeholder="seu@email.com"
                     required
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -65,6 +117,8 @@ const Auth = () => {
                     type="password"
                     placeholder="••••••••"
                     required
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
                   />
                 </div>
                 <Button
@@ -88,6 +142,8 @@ const Auth = () => {
                     type="text"
                     placeholder="Seu nome"
                     required
+                    value={registerName}
+                    onChange={(e) => setRegisterName(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -97,6 +153,8 @@ const Auth = () => {
                     type="email"
                     placeholder="seu@email.com"
                     required
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -106,6 +164,8 @@ const Auth = () => {
                     type="tel"
                     placeholder="(00) 00000-0000"
                     required
+                    value={registerWhatsapp}
+                    onChange={(e) => setRegisterWhatsapp(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -114,6 +174,8 @@ const Auth = () => {
                     id="register-instagram"
                     type="text"
                     placeholder="@seuinstagram"
+                    value={registerInstagram}
+                    onChange={(e) => setRegisterInstagram(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -123,6 +185,8 @@ const Auth = () => {
                     type="password"
                     placeholder="••••••••"
                     required
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -132,6 +196,8 @@ const Auth = () => {
                     type="password"
                     placeholder="••••••••"
                     required
+                    value={registerConfirmPassword}
+                    onChange={(e) => setRegisterConfirmPassword(e.target.value)}
                   />
                 </div>
                 <Button
