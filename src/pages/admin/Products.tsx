@@ -14,14 +14,14 @@ import { MOCK_PRODUCTS } from "@/lib/mockData";
 import { supabase } from '@/lib/utils';
 import { toast } from "sonner";
 
-// Interface para a categoria (mantida)
+// Interface para a categoria
 interface Category {
   id: string;
   name: string;
   slug: string;
 }
 
-// ⭐️ NOVO: Interface para o produto (baseado no MOCK_PRODUCTS) ⭐️
+// Interface para o produto
 interface Product {
     id: number; // Supondo que o mock usa número
     title: string;
@@ -29,15 +29,36 @@ interface Product {
     category: string;
     price: number;
     description: string;
-    // Adicione outros campos se necessário
 }
 
+// Interface para o estado do formulário
+interface FormData {
+    title: string;
+    category: string;
+    price: string;
+    imageUrl: string;
+    description: string;
+}
+
+// Estado inicial do formulário
+const initialFormData: FormData = {
+    title: '',
+    category: '',
+    price: '',
+    imageUrl: '',
+    description: '',
+};
 
 const Products = () => {
-  // ⭐️ ALTERADO: Usando 'setProducts' para permitir exclusão local (Mock) ⭐️
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS); 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
+  
+  // ⭐️ NOVOS ESTADOS PARA EDIÇÃO E CONTROLE DE ABA ⭐️
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [activeTab, setActiveTab] = useState("list"); 
+
 
   // Função para buscar categorias no Supabase (mantida)
   const fetchCategories = async () => {
@@ -60,10 +81,52 @@ const Products = () => {
     fetchCategories();
   }, []);
 
-  const handleAddProduct = (e: React.FormEvent<HTMLFormElement>) => {
+  // Handler genérico para inputs de texto e área de texto
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+  };
+
+  // Handler para o Select (Categoria)
+  const handleSelectChange = (value: string) => {
+    setFormData(prev => ({ ...prev, category: value }));
+  };
+
+  // ⭐️ ATUALIZADO: Lógica de Adicionar/Salvar Edição ⭐️
+  const handleSaveProduct = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // TODO: Implementar lógica de adicionar produto
-    toast.success("Produto adicionado com sucesso!");
+
+    if (editingProduct) {
+        // Lógica de EDIÇÃO (Mock)
+        toast.success(`Produto '${formData.title}' atualizado com sucesso! (Mock)`);
+
+        // Atualizar lista local (Mock)
+        setProducts(prev => prev.map(p => 
+            p.id === editingProduct.id 
+                ? { ...p, ...formData, price: parseFloat(formData.price) } 
+                : p
+        ));
+        
+        // TODO: Implementar lógica de UPDATE do Supabase aqui
+
+    } else {
+        // Lógica de ADIÇÃO (Mock)
+        const newId = products.length > 0 ? products[0].id + 1 : 1; // ID simples
+        const newProduct: Product = {
+            id: newId,
+            ...formData,
+            price: parseFloat(formData.price),
+        };
+        setProducts(prev => [newProduct, ...prev]);
+        toast.success("Novo produto adicionado com sucesso! (Mock)");
+        
+        // TODO: Implementar lógica de INSERT do Supabase aqui
+    }
+
+    // Resetar estados e voltar para a lista
+    setEditingProduct(null);
+    setFormData(initialFormData);
+    setActiveTab("list");
   };
 
   const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,13 +134,26 @@ const Products = () => {
     toast.info("Funcionalidade de upload em massa será implementada");
   };
 
-  // ⭐️ NOVO: Função para Excluir Produto (Lógica Mock) ⭐️
+  // ⭐️ FUNÇÃO ATUALIZADA: Entrar no Modo de Edição ⭐️
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setFormData({
+        title: product.title,
+        category: product.category, // Categoria é o slug
+        price: product.price.toFixed(2),
+        imageUrl: product.imageUrl,
+        description: product.description,
+    });
+    // Mudar para a aba de formulário
+    setActiveTab("add");
+  };
+
+  // Função para Excluir Produto (Lógica Mock - Mantida)
   const handleDeleteProduct = (productId: number, productName: string) => {
     if (!window.confirm(`Tem certeza que deseja excluir o produto: "${productName}"?`)) {
         return;
     }
 
-    // Lógica para remover do array local (Mock)
     const updatedProducts = products.filter(p => p.id !== productId);
     setProducts(updatedProducts);
     
@@ -85,12 +161,12 @@ const Products = () => {
 
     // TODO: Adicionar lógica real de DELETE do Supabase aqui no futuro
   };
-
-  // ⭐️ NOVO: Função para Editar Produto (Placeholder) ⭐️
-  const handleEditProduct = (product: Product) => {
-    // TODO: Abrir modal ou pré-preencher o formulário 'Add Product'
-    toast.info(`Iniciando edição do produto: "${product.title}"`);
-    console.log('Editar produto:', product);
+  
+  // Função para cancelar a edição
+  const handleCancelEdit = () => {
+    setEditingProduct(null);
+    setFormData(initialFormData);
+    setActiveTab("list");
   };
 
   return (
@@ -104,30 +180,46 @@ const Products = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="add" className="space-y-6">
+      {/* ⭐️ CONTROLE DE ABA ATUALIZADO ⭐️ */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="add">Adicionar Produto</TabsTrigger>
+          <TabsTrigger value="add">
+             {editingProduct ? 'Editar Produto' : 'Adicionar Produto'} {/* Texto dinâmico */}
+          </TabsTrigger>
           <TabsTrigger value="bulk">Upload em Massa</TabsTrigger>
           <TabsTrigger value="list">Lista de Produtos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="add">
           <Card className="p-6">
-            <h3 className="text-xl font-bold mb-6">Adicionar Produto Individual</h3>
-            <form onSubmit={handleAddProduct} className="space-y-6">
+            <h3 className="text-xl font-bold mb-6">
+              {editingProduct ? `Editando: ${editingProduct.title}` : 'Adicionar Produto Individual'}
+            </h3>
+            {/* ⭐️ FORMULÁRIO CONECTADO A handleSaveProduct ⭐️ */}
+            <form onSubmit={handleSaveProduct} className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
+                
+                {/* Título */}
                 <div className="space-y-2">
                   <Label htmlFor="title">Título</Label>
                   <Input
                     id="title"
+                    value={formData.title} 
+                    onChange={handleInputChange} 
                     placeholder="Nome da imagem"
                     required
                   />
                 </div>
 
+                {/* Categoria */}
                 <div className="space-y-2">
                   <Label htmlFor="category">Categoria</Label>
-                  <Select required disabled={loadingCategories}> 
+                  <Select 
+                    required 
+                    disabled={loadingCategories}
+                    value={formData.category} // Conectado!
+                    onValueChange={handleSelectChange} // Conectado!
+                  > 
                     <SelectTrigger>
                       <SelectValue placeholder={loadingCategories ? "Carregando..." : "Selecione uma categoria"} />
                     </SelectTrigger>
@@ -142,6 +234,7 @@ const Products = () => {
                   {loadingCategories && <p className="text-sm text-muted-foreground">Carregando categorias...</p>}
                 </div>
 
+                {/* Preço */}
                 <div className="space-y-2">
                   <Label htmlFor="price">Preço (R$)</Label>
                   <Input
@@ -149,36 +242,59 @@ const Products = () => {
                     type="number"
                     step="0.01"
                     min="0"
+                    value={formData.price} // Conectado!
+                    onChange={handleInputChange} // Conectado!
                     placeholder="29.90"
                     required
                   />
                 </div>
 
+                {/* URL da Imagem */}
                 <div className="space-y-2">
                   <Label htmlFor="imageUrl">URL da Imagem Externa</Label>
                   <Input
                     id="imageUrl"
                     type="url"
+                    value={formData.imageUrl} // Conectado!
+                    onChange={handleInputChange} // Conectado!
                     placeholder="https://exemplo.com/imagem.png"
                     required
                   />
                 </div>
               </div>
 
+              {/* Descrição */}
               <div className="space-y-2">
                 <Label htmlFor="description">Descrição</Label>
                 <Textarea
                   id="description"
+                  value={formData.description} // Conectado!
+                  onChange={handleInputChange} // Conectado!
                   placeholder="Descreva a imagem..."
                   rows={4}
                   required
                 />
               </div>
 
-              <Button type="submit" variant="hero" size="lg">
-                <Plus className="h-5 w-5 mr-2" />
-                Adicionar Produto
-              </Button>
+              {/* Botões de Ação */}
+              <div className='flex gap-2'>
+                <Button type="submit" variant="hero" size="lg">
+                    {editingProduct ? <Edit className="h-5 w-5 mr-2" /> : <Plus className="h-5 w-5 mr-2" />}
+                    {editingProduct ? 'Salvar Edição' : 'Adicionar Produto'}
+                </Button>
+                
+                {/* Botão de Cancelar Edição */}
+                {editingProduct && (
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="lg"
+                        onClick={handleCancelEdit} // Conectado!
+                    >
+                        Cancelar Edição
+                    </Button>
+                )}
+              </div>
             </form>
           </Card>
         </TabsContent>
@@ -237,19 +353,19 @@ const Products = () => {
                       {product.category} • R$ {product.price.toFixed(2)}
                     </p>
                   </div>
-                  {/* ⭐️ Conexão dos botões com os handlers ⭐️ */}
+                  
                   <div className="flex gap-2">
                     <Button 
                         variant="outline" 
                         size="icon"
-                        onClick={() => handleEditProduct(product)} // Chama a função de edição
+                        onClick={() => handleEditProduct(product)} // Conectado à função de edição
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button 
                         variant="outline" 
                         size="icon"
-                        onClick={() => handleDeleteProduct(product.id, product.title)} // Chama a função de exclusão
+                        onClick={() => handleDeleteProduct(product.id, product.title)} // Conectado à função de exclusão
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
