@@ -10,7 +10,8 @@ export const Layout = ({ children }: LayoutProps) => {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <Header />
       <main className="flex-1">
-        <div className="container mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8">
+        {/* wrapper com classe explicita para garantir o max-width via CSS */}
+        <div className="app-container">
           {children}
         </div>
       </main>
