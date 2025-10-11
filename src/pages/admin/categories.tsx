@@ -1,17 +1,19 @@
 // src/pages/admin/categories.tsx
 
 import React, { useState, useEffect } from "react";
-import RequireAdmin from "@/components/layout/RequireAdmin";
+// Assumindo que você tem este componente para proteger a rota
+import RequireAdmin from "@/components/layout/RequireAdmin"; 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-// Assumindo que você tem o Supabase e o slugify importados
-import { supabase, slugify } from '@/lib/utils'; // Certifique-se que slugify está em utils
+// Importa as funções que você confirmou em src/lib/utils.ts
+import { supabase, slugify } from '@/lib/utils'; 
 
 interface Category {
-  id: string; // UUID do Supabase
+  // O ID do Supabase é um UUID, tratado como string
+  id: string; 
   name: string;
   slug: string;
 }
@@ -22,9 +24,10 @@ const AdminCategoriesPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 1. FUNÇÃO PARA BUSCAR CATEGORIAS
+  // 1. FUNÇÃO PARA BUSCAR CATEGORIAS NO SUPABASE
   const fetchCategories = async () => {
     setLoading(true);
+    // Busca id, name e slug da tabela 'categorias'
     const { data, error } = await supabase
       .from('categorias')
       .select('id, name, slug')
@@ -33,7 +36,7 @@ const AdminCategoriesPage: React.FC = () => {
     if (error) {
       console.error('Erro ao carregar categorias:', error);
       toast.error('Erro ao carregar lista de categorias.');
-      setCategories([]); // Garante que não mostra dados antigos em caso de erro
+      setCategories([]); 
     } else if (data) {
       setCategories(data as Category[]);
     }
@@ -41,10 +44,11 @@ const AdminCategoriesPage: React.FC = () => {
   };
 
   useEffect(() => {
+    // Carrega as categorias ao montar o componente
     fetchCategories();
   }, []);
 
-  // 2. FUNÇÃO PARA ADICIONAR CATEGORIA
+  // 2. FUNÇÃO PARA ADICIONAR CATEGORIA NO SUPABASE
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = newCategoryName.trim();
@@ -54,9 +58,8 @@ const AdminCategoriesPage: React.FC = () => {
       return;
     }
     
+    // Gera o slug e valida se já existe
     const slug = slugify(name);
-    
-    // Verifica se a categoria (pelo slug) já existe
     if (categories.some(c => c.slug === slug)) {
         toast.error(`A categoria "${name}" (slug: ${slug}) já existe.`);
         return;
@@ -64,12 +67,14 @@ const AdminCategoriesPage: React.FC = () => {
 
     setIsSubmitting(true);
     
+    // Insere no Supabase
     const { error } = await supabase
       .from('categorias')
-      .insert({ name: name, slug: slug }); // Campos 'id' e 'created_at' são gerados automaticamente
+      .insert({ name: name, slug: slug });
 
     if (error) {
       console.error('Erro ao adicionar categoria:', error);
+      // O erro de unique constraint será capturado aqui se o slug for duplicado no banco
       toast.error(`Erro ao adicionar: ${error.message}`);
     } else {
       toast.success(`Categoria "${name}" adicionada com sucesso!`);
@@ -81,7 +86,7 @@ const AdminCategoriesPage: React.FC = () => {
     setIsSubmitting(false);
   };
 
-  // 3. FUNÇÃO PARA DELETAR CATEGORIA
+  // 3. FUNÇÃO PARA DELETAR CATEGORIA NO SUPABASE
   const handleDeleteCategory = async (id: string, name: string) => {
     if (!window.confirm(`Tem certeza que deseja excluir a categoria: "${name}"?`)) {
       return;
@@ -89,6 +94,7 @@ const AdminCategoriesPage: React.FC = () => {
 
     setLoading(true);
     
+    // Deleta do Supabase
     const { error } = await supabase
       .from('categorias')
       .delete()
@@ -112,12 +118,13 @@ const AdminCategoriesPage: React.FC = () => {
       <div className="container mx-auto p-4 space-y-8">
         <h1 className="text-3xl font-bold">Gerenciar Categorias</h1>
 
+        {/* --- Formulário de Adição --- */}
         <Card className="p-6 space-y-6">
             <h3 className="text-xl font-semibold mb-4">Adicionar Nova Categoria</h3>
             <form onSubmit={handleAddCategory} className="flex gap-4">
                 <Input
                     type="text"
-                    placeholder="Nome da Nova Categoria"
+                    placeholder="Nome da Nova Categoria (Ex: Açaí, Lanches)"
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     disabled={isSubmitting || loading}
@@ -129,27 +136,40 @@ const AdminCategoriesPage: React.FC = () => {
                     variant="hero" 
                     disabled={isSubmitting || loading}
                 >
-                    {isSubmitting ? 'Adicionando...' : 'Adicionar'}
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Adicionando...
+                        </>
+                    ) : 'Adicionar'}
                 </Button>
             </form>
-            {newCategoryName && (
+            {/* Pré-visualização do Slug */}
+            {newCategoryName.trim() && (
                 <p className="text-sm text-muted-foreground mt-2">
                     Slug Sugerido: **{slugify(newCategoryName)}**
                 </p>
             )}
         </Card>
 
+        {/* --- Lista de Categorias --- */}
         <Card className="p-6">
             <h3 className="text-xl font-semibold mb-4">Lista de Categorias</h3>
             
+            {/* Indicador de Carregamento */}
             {loading && categories.length === 0 && (
-                <p className="text-center text-muted-foreground">Carregando categorias...</p>
+                <div className="flex justify-center items-center py-4 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Carregando categorias...
+                </div>
             )}
 
+            {/* Mensagem de Vazio */}
             {!loading && categories.length === 0 && (
                 <p className="text-center text-muted-foreground">Nenhuma categoria encontrada. Adicione uma acima!</p>
             )}
 
+            {/* Renderização da Lista */}
             <div className="space-y-3">
                 {categories.map((category) => (
                     <div 
