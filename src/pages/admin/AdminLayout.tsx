@@ -7,39 +7,32 @@ import {
   Users,
   LogOut,
   Menu,
-  Tags, // ⭐️ NOVO: Importado ícone para Categorias
+  Tags,
 } from "lucide-react";
-import { useState } from "react"; // Removido useEffect
+import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { supabase } from "../../lib/utils"; // Mantido para o logout
+import { supabase } from "../../lib/utils";
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  // ⚠️ REMOVIDO: isLoading e isAdmin. O RequireAdmin faz a segurança.
   const [isOpen, setIsOpen] = useState(false);
 
-  // -------------------------------------------------------------------
-  // LOGOUT
-  // -------------------------------------------------------------------
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate("/auth"); // Redireciona para a tela de login
+    navigate("/auth");
   };
 
   const navigation = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { name: "Produtos", href: "/admin/products", icon: Package },
-    // ⭐️ ADICIONADO: Botão de Categorias ⭐️
     { name: "Categorias", href: "/admin/categories", icon: Tags },
     { name: "Pedidos", href: "/admin/orders", icon: ShoppingBag },
     { name: "Usuários", href: "/admin/users", icon: Users },
   ];
 
   const isActive = (href: string) => {
-    if (href === "/admin") {
-      return location.pathname === href;
-    }
+    if (href === "/admin") return location.pathname === href;
     return location.pathname.startsWith(href);
   };
 
@@ -68,32 +61,26 @@ const AdminLayout = () => {
     </nav>
   );
 
-  // -------------------------------------------------------------------
-  // Renderização
-  // -------------------------------------------------------------------
-  // ⚠️ REMOVIDO: As checagens if (isLoading) e if (!isAdmin)
-
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background">
-        <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
+      <header className="sticky top-0 z-50 border-b border-border bg-card">
+        <div className="flex h-16 items-center gap-4 px-4 lg:px-6 max-w-[1200px] mx-auto w-full">
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            {/* ... Seu código SheetTrigger e SheetContent ... */}
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="lg:hidden">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-6">
+
+            <SheetContent side="left" className="w-64 p-6 bg-card border-border">
               <div className="mb-8">
                 <Link to="/" className="flex items-center space-x-2">
                   <img
-  src="https://pub-5c45cfd873454d96a8bc860a71c4c505.r2.dev/Logo%20dourado%20mais%20claro.png"
-  alt="Logo"
-  className="h-10 w-auto"
-/>
-
+                    src="https://pub-5c45cfd873454d96a8bc860a71c4c505.r2.dev/Logo%20dourado%20mais%20claro.png"
+                    alt="Logo"
+                    className="h-10 w-auto"
+                  />
                 </Link>
                 <p className="text-sm text-muted-foreground mt-2">
                   Painel Administrativo
@@ -102,14 +89,16 @@ const AdminLayout = () => {
               <NavLinks />
             </SheetContent>
           </Sheet>
-<Link to="/" className="flex items-center space-x-2">
+
+          {/* Logo Desktop */}
+          <Link to="/" className="flex items-center space-x-2">
             <img
               src="https://pub-5c45cfd873454d96a8bc860a71c4c505.r2.dev/Logo%20dourado%20mais%20claro.png"
               alt="Logo"
               className="h-10 w-auto"
             />
-            
           </Link>
+
           <div className="ml-auto flex items-center gap-2">
             <Button variant="outline" asChild>
               <Link to="/">Ver Loja</Link>
@@ -121,18 +110,21 @@ const AdminLayout = () => {
         </div>
       </header>
 
-      <div className="flex">
-        {/* Sidebar - Desktop */}
-        <aside className="hidden lg:block w-64 border-r bg-background">
-          <div className="sticky top-16 p-6">
-            <NavLinks />
-          </div>
-        </aside>
+      {/* Conteúdo principal centralizado */}
+      <div className="flex justify-center">
+        <div className="flex w-full max-w-[1200px]">
+          {/* Sidebar - Desktop */}
+          <aside className="hidden lg:block w-64 border-r border-border bg-card">
+            <div className="sticky top-16 p-6">
+              <NavLinks />
+            </div>
+          </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 p-6 lg:p-8">
-          <Outlet />
-        </main>
+          {/* Main Content */}
+          <main className="flex-1 p-6 lg:p-8">
+            <Outlet />
+          </main>
+        </div>
       </div>
     </div>
   );
