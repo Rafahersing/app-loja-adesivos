@@ -7,31 +7,55 @@ import {
   Users,
   LogOut,
   Menu,
-  Tags, // ⭐️ NOVO: Importado ícone para Categorias
 } from "lucide-react";
-import { useState } from "react"; // Removido useEffect
+import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { supabase } from "../../lib/utils"; // Mantido para o logout
+import { supabase } from "../../lib/utils";
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  // ⚠️ REMOVIDO: isLoading e isAdmin. O RequireAdmin faz a segurança.
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  // -------------------------------------------------------------------
+  // 🚨 VERIFICAÇÃO DE ADMIN
+  // -------------------------------------------------------------------
+  useEffect(() => {
+    async function checkAdmin() {
+      const { data: { user }, error } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        navigate('/auth'); 
+        return;
+      }
+
+      const userIsAdmin = user.app_metadata.is_admin === true;
+      setIsAdmin(userIsAdmin);
+      setIsLoading(false);
+
+      if (!userIsAdmin) {
+        navigate('/');
+      }
+    }
+    checkAdmin();
+  }, [navigate]);
 
   // -------------------------------------------------------------------
   // LOGOUT
   // -------------------------------------------------------------------
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate("/auth"); // Redireciona para a tela de login
+    navigate('/auth');
   };
 
+  // -------------------------------------------------------------------
+  // LINKS DO MENU
+  // -------------------------------------------------------------------
   const navigation = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { name: "Produtos", href: "/admin/products", icon: Package },
-    // ⭐️ ADICIONADO: Botão de Categorias ⭐️
-    { name: "Categorias", href: "/admin/categories", icon: Tags },
     { name: "Pedidos", href: "/admin/orders", icon: ShoppingBag },
     { name: "Usuários", href: "/admin/users", icon: Users },
   ];
@@ -69,9 +93,19 @@ const AdminLayout = () => {
   );
 
   // -------------------------------------------------------------------
-  // Renderização
+  // RENDERIZAÇÃO
   // -------------------------------------------------------------------
-  // ⚠️ REMOVIDO: As checagens if (isLoading) e if (!isAdmin)
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Verificando Permissões...
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return null; 
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -79,21 +113,20 @@ const AdminLayout = () => {
       <header className="sticky top-0 z-50 border-b bg-background">
         <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            {/* ... Seu código SheetTrigger e SheetContent ... */}
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="lg:hidden">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
+
             <SheetContent side="left" className="w-64 p-6">
               <div className="mb-8">
                 <Link to="/" className="flex items-center space-x-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-primary">
-                    <span className="text-xl font-bold text-primary-foreground">
-                      P
-                    </span>
-                  </div>
-                  <span className="text-xl font-bold">PixelStore</span>
+                  <img
+                    src="https://pub-5c45cfd873454d96a8bc860a71c4c505.r2.dev/Logo%20dourado%20mais%20claro.png"
+                    alt="Logo"
+                    className="h-10 w-auto"
+                  />
                 </Link>
                 <p className="text-sm text-muted-foreground mt-2">
                   Painel Administrativo
@@ -104,11 +137,12 @@ const AdminLayout = () => {
           </Sheet>
 
           <Link to="/" className="flex items-center space-x-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-primary">
-              <span className="text-xl font-bold text-primary-foreground">P</span>
-            </div>
+            <img
+              src="https://pub-5c45cfd873454d96a8bc860a71c4c505.r2.dev/Logo%20dourado%20mais%20claro.png"
+              alt="Logo"
+              className="h-10 w-auto"
+            />
             <div className="hidden sm:block">
-              <span className="text-xl font-bold">PixelStore</span>
               <p className="text-xs text-muted-foreground">Admin</p>
             </div>
           </Link>
