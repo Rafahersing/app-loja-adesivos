@@ -1,17 +1,19 @@
-// src/pages/admin/categories.tsx (Versão Mínima para Teste de Rota)
-// APAGAR DEPOIS DO TESTE
+// src/pages/admin/categories.tsx (Código Final de Rota)
+
 import React from 'react';
-// import RequireAdmin from '@/components/layout/RequireAdmin'; // Comentar
-// import CategoryManager from '@/components/admin/CategoryManager'; // Comentar
+import RequireAdmin from '@/components/layout/RequireAdmin';
+import CategoryManager from '@/components/admin/CategoryManager'; 
+// OBS: Você precisa garantir que o caminho de importação (ex: '@/components/layout/RequireAdmin') esteja correto.
 
 const AdminCategoriesPage: React.FC = () => {
     return (
-        // Comentar a proteção de rota
-        // <RequireAdmin> 
+        // O RequireAdmin protege o acesso
+        <RequireAdmin>
             <div className="container mx-auto p-4">
-                <h1>Teste de Rota: Categorias</h1>
+                {/* O componente principal de gerenciamento */}
+                <CategoryManager />
             </div>
-        // </RequireAdmin> // APAGAR DEPOIS DO TESTE
+        </RequireAdmin>
     );
 };
 
