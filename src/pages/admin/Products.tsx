@@ -54,7 +54,6 @@ const Products = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   
-  // ⭐️ NOVOS ESTADOS PARA EDIÇÃO E CONTROLE DE ABA ⭐️
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [activeTab, setActiveTab] = useState("list"); 
@@ -92,7 +91,7 @@ const Products = () => {
     setFormData(prev => ({ ...prev, category: value }));
   };
 
-  // ⭐️ ATUALIZADO: Lógica de Adicionar/Salvar Edição ⭐️
+  // Lógica de Adicionar/Salvar Edição
   const handleSaveProduct = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -129,12 +128,45 @@ const Products = () => {
     setActiveTab("list");
   };
 
+  // ⭐️ FUNÇÃO ATUALIZADA: Implementação simulada do Upload em Massa ⭐️
   const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // TODO: Implementar upload em massa via CSV/Excel
-    toast.info("Funcionalidade de upload em massa será implementada");
-  };
+    const file = e.target.files?.[0];
+    if (!file) {
+      toast.error("Nenhum arquivo selecionado.");
+      return;
+    }
 
-  // ⭐️ FUNÇÃO ATUALIZADA: Entrar no Modo de Edição ⭐️
+    // --- SIMULAÇÃO DA LEITURA E PROCESSAMENTO DO ARQUIVO CSV/EXCEL ---
+    const mockBulkData = [
+        { title: 'Upload Açaí Premium', imageUrl: 'https://images.unsplash.com/photo-1549488344-93836d540203', category: 'acai', price: 35.00, description: 'Açaí de altíssima qualidade' },
+        { title: 'Upload Salgado Mix', imageUrl: 'https://images.unsplash.com/photo-1547432095-d227361a6b0c', category: 'salgados', price: 12.00, description: 'Combo de salgados fritos' },
+        { title: 'Upload Suco Verde Detox', imageUrl: 'https://images.unsplash.com/photo-1579737190977-17559e519e99', category: 'sucos', price: 18.00, description: 'Suco natural desintoxicante' },
+    ];
+    
+    // Calcula o próximo ID disponível
+    const maxCurrentId = products.length > 0 ? Math.max(...products.map(p => p.id)) : 100;
+    
+    const newProducts: Product[] = mockBulkData.map((item, index) => ({
+        ...item,
+        // Garante que os novos IDs são únicos (para o mock)
+        id: maxCurrentId + 1 + index,
+        price: item.price, // Já está como number no mock
+    }));
+
+    // Atualização do state local com os novos produtos
+    setProducts(prev => [...newProducts, ...prev]);
+
+    // Limpa o input de arquivo (para que o onChange dispare novamente se o mesmo arquivo for selecionado)
+    e.target.value = ''; 
+    
+    toast.success(`${newProducts.length} produtos importados em massa com sucesso!`);
+    setActiveTab("list"); // Move o usuário para a lista
+    
+    // TODO: Adicionar lógica real de INSERT MANY do Supabase aqui
+  };
+  // -------------------------------------------------------------
+
+  // Função para Entrar no Modo de Edição
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setFormData({
@@ -180,11 +212,10 @@ const Products = () => {
         </div>
       </div>
 
-      {/* ⭐️ CONTROLE DE ABA ATUALIZADO ⭐️ */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="add">
-             {editingProduct ? 'Editar Produto' : 'Adicionar Produto'} {/* Texto dinâmico */}
+             {editingProduct ? 'Editar Produto' : 'Adicionar Produto'}
           </TabsTrigger>
           <TabsTrigger value="bulk">Upload em Massa</TabsTrigger>
           <TabsTrigger value="list">Lista de Produtos</TabsTrigger>
@@ -195,7 +226,6 @@ const Products = () => {
             <h3 className="text-xl font-bold mb-6">
               {editingProduct ? `Editando: ${editingProduct.title}` : 'Adicionar Produto Individual'}
             </h3>
-            {/* ⭐️ FORMULÁRIO CONECTADO A handleSaveProduct ⭐️ */}
             <form onSubmit={handleSaveProduct} className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
                 
@@ -217,8 +247,8 @@ const Products = () => {
                   <Select 
                     required 
                     disabled={loadingCategories}
-                    value={formData.category} // Conectado!
-                    onValueChange={handleSelectChange} // Conectado!
+                    value={formData.category}
+                    onValueChange={handleSelectChange}
                   > 
                     <SelectTrigger>
                       <SelectValue placeholder={loadingCategories ? "Carregando..." : "Selecione uma categoria"} />
@@ -242,8 +272,8 @@ const Products = () => {
                     type="number"
                     step="0.01"
                     min="0"
-                    value={formData.price} // Conectado!
-                    onChange={handleInputChange} // Conectado!
+                    value={formData.price}
+                    onChange={handleInputChange}
                     placeholder="29.90"
                     required
                   />
@@ -255,8 +285,8 @@ const Products = () => {
                   <Input
                     id="imageUrl"
                     type="url"
-                    value={formData.imageUrl} // Conectado!
-                    onChange={handleInputChange} // Conectado!
+                    value={formData.imageUrl}
+                    onChange={handleInputChange}
                     placeholder="https://exemplo.com/imagem.png"
                     required
                   />
@@ -268,8 +298,8 @@ const Products = () => {
                 <Label htmlFor="description">Descrição</Label>
                 <Textarea
                   id="description"
-                  value={formData.description} // Conectado!
-                  onChange={handleInputChange} // Conectado!
+                  value={formData.description}
+                  onChange={handleInputChange}
                   placeholder="Descreva a imagem..."
                   rows={4}
                   required
@@ -289,7 +319,7 @@ const Products = () => {
                         type="button" 
                         variant="outline" 
                         size="lg"
-                        onClick={handleCancelEdit} // Conectado!
+                        onClick={handleCancelEdit}
                     >
                         Cancelar Edição
                     </Button>
@@ -315,7 +345,7 @@ const Products = () => {
                   type="file"
                   accept=".csv,.xlsx,.xls"
                   className="max-w-xs mx-auto"
-                  onChange={handleBulkUpload}
+                  onChange={handleBulkUpload} // ⭐️ AGORA CONECTADO À NOVA LÓGICA ⭐️
                 />
               </div>
 
@@ -358,14 +388,14 @@ const Products = () => {
                     <Button 
                         variant="outline" 
                         size="icon"
-                        onClick={() => handleEditProduct(product)} // Conectado à função de edição
+                        onClick={() => handleEditProduct(product)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button 
                         variant="outline" 
                         size="icon"
-                        onClick={() => handleDeleteProduct(product.id, product.title)} // Conectado à função de exclusão
+                        onClick={() => handleDeleteProduct(product.id, product.title)}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
