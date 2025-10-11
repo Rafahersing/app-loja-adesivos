@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { supabase } from "@/lib/utils"; // Importa o cliente Supabase
+import { supabase } from "../../lib/utils"; // Assumindo que RequireAdmin está em src/components/layout/
 
 const RequireAdmin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
