@@ -242,7 +242,7 @@ const Products = () => {
     
   // --- Importação em Massa (Lógica Real) ---
     
-  const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
+   const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
       // Mapeamento de Slug para ID
       const categoryMap: { [key: string]: string } = categories.reduce((map, cat) => {
           map[cat.slug] = cat.id;
@@ -260,11 +260,11 @@ const Products = () => {
           const normalized = h.toLowerCase().trim()
             .replace(/[^a-z0-9]/g, ''); // Remove todos os caracteres não alfanuméricos
             
-          if (normalized.includes('url')) headerMap['url'] = i;
+          if (normalized.includes('url') || normalized.includes('imagem')) headerMap['url'] = i;
           else if (normalized.includes('categoria')) headerMap['categoria'] = i;
-          else if (normalized.includes('titulo')) headerMap['titulo'] = i;
+          else if (normalized.includes('titulo') || normalized.includes('nome')) headerMap['titulo'] = i;
           else if (normalized.includes('descricao')) headerMap['descricao'] = i;
-          else if (normalized.includes('preco')) headerMap['preco'] = i;
+          else if (normalized.includes('preco') || normalized.includes('valor')) headerMap['preco'] = i;
       });
 
       const urlIndex = headerMap['url'];
@@ -273,11 +273,16 @@ const Products = () => {
       const descIndex = headerMap['descricao'];
       const priceIndex = headerMap['preco']; 
       
-      // Validação básica de cabeçalho
-      if (urlIndex === undefined || categoryIndex === undefined || titleIndex === undefined || priceIndex === undefined) {
-           throw new Error("Colunas obrigatórias (URL, Categoria, Título, Preço) não encontradas no cabeçalho. Verifique a ortografia.");
+      // ⭐️ MUDANÇA AQUI: Mensagem de erro mais clara e só lança erro se o TÍTULO (mínimo) não for encontrado.
+      if (titleIndex === undefined) {
+           throw new Error("Colunas obrigatórias (Título) não encontradas. Verifique se o cabeçalho contém 'Título' ou 'Nome'.");
       }
-
+      
+      if (urlIndex === undefined || categoryIndex === undefined || priceIndex === undefined) {
+           // Em vez de quebrar, apenas avisa que alguns dados podem faltar
+           toast.warning("Atenção: Nem todas as colunas obrigatórias (URL, Categoria, Preço) foram encontradas. A importação pode falhar.");
+      }
+      
       for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
           const rowNumber = i + 2; 
@@ -287,30 +292,36 @@ const Products = () => {
 
           const tempProductId = crypto.randomUUID(); 
 
-          // Prepara o preço (limpa vírgula e converte)
-          const priceValue = row[priceIndex]?.toString().replace(',', '.').trim();
+          // Prepara o preço, verifica se o índice existe antes de tentar acessar
+          const priceValue = (priceIndex !== undefined && row[priceIndex]) 
+                             ? row[priceIndex].toString().replace(',', '.').trim() 
+                             : '0';
 
           const product = {
               id: tempProductId, 
-              image_url: row[urlIndex]?.trim() || null,
+              // Verifica se o índice existe antes de tentar acessar
+              image_url: (urlIndex !== undefined && row[urlIndex]) ? row[urlIndex].trim() : null,
               title: title,
-              description: row[descIndex]?.trim() || 'Sem descrição.',
+              description: (descIndex !== undefined && row[descIndex]) ? row[descIndex].trim() : 'Sem descrição.',
               price: parseFloat(priceValue) || 0, 
           };
 
           finalProducts.push(product);
 
-          const categoryName = row[categoryIndex]?.trim();
-          const categorySlug = slugify(categoryName);
-          const categoryId = categoryMap[categorySlug];
+          // Lógica de categoria
+          if (categoryIndex !== undefined && row[categoryIndex]) {
+             const categoryName = row[categoryIndex]?.trim();
+             const categorySlug = slugify(categoryName);
+             const categoryId = categoryMap[categorySlug];
           
-          if (categoryId) {
-              finalProductCategories.push({
-                  product_id: tempProductId,
-                  category_id: categoryId,
-              });
-          } else {
-              toast.warning(`Linha ${rowNumber}: Categoria "${categoryName}" não encontrada. Produto será importado, mas sem categoria.`);
+             if (categoryId) {
+                 finalProductCategories.push({
+                     product_id: tempProductId,
+                     category_id: categoryId,
+                 });
+             } else {
+                 toast.warning(`Linha ${rowNumber}: Categoria "${categoryName}" não encontrada. Produto será importado, mas sem categoria.`);
+             }
           }
       }
       
