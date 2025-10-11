@@ -1,6 +1,6 @@
 // src/pages/admin/Products.tsx
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Upload, Trash2, Edit } from "lucide-react";
+import { Plus, Upload, Trash2, Edit, Loader2 } from "lucide-react"; // Adicionando Loader2
+// ⭐️ IMPORTAÇÃO NOVA PARA XLSX ⭐️
+import * as XLSX from 'xlsx'; 
 // Importações de dados e utilitários
-import { MOCK_PRODUCTS } from "@/lib/mockData"; 
-import { supabase } from '@/lib/utils';
+// ⭐️ ADICIONANDO slugify ⭐️
+import { supabase, slugify } from '@/lib/utils';
 import { toast } from "sonner";
 
 // Interface para a categoria
@@ -21,12 +23,12 @@ interface Category {
   slug: string;
 }
 
-// Interface para o produto
+// Interface para o produto (Ajustada para corresponder ao DB)
 interface Product {
-    id: number;
+    id: string; // ID deve ser string/UUID para o Supabase
     title: string;
-    imageUrl: string;
-    category: string;
+    image_url: string; // Mudei de imageUrl para image_url (padrão DB)
+    category_slug: string; // Usaremos o slug para exibir
     price: number;
     description: string;
 }
@@ -34,32 +36,36 @@ interface Product {
 // Interface para o estado do formulário
 interface FormData {
     title: string;
-    category: string;
+    category_slug: string; // Mudei para category_slug
     price: string;
-    imageUrl: string;
+    image_url: string; // Mudei para image_url
     description: string;
 }
 
 // Estado inicial do formulário
 const initialFormData: FormData = {
     title: '',
-    category: '',
+    category_slug: '',
     price: '',
-    imageUrl: '',
+    image_url: '',
     description: '',
 };
 
 const Products = () => {
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS); 
+  // Ajustando o estado dos produtos para refletir a interface atualizada
+  const [products, setProducts] = useState<Product[]>([]); 
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
-  
+  const [uploading, setUploading] = useState(false); // Novo estado para o upload em massa
+    
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [activeTab, setActiveTab] = useState("list"); 
+  const [activeTab, setActiveTab] = useState("list");
 
+  // --- Funções de Carregamento de Dados ---
 
-  // Função para buscar categorias no Supabase (mantida)
+  // 1. Buscar Categorias
   const fetchCategories = async () => {
     setLoadingCategories(true);
     const { data, error } = await supabase
@@ -75,113 +81,336 @@ const Products = () => {
     }
     setLoadingCategories(false);
   };
+    
+  // 2. Buscar Produtos Reais
+  const fetchProducts = async () => {
+    setLoadingProducts(true);
+    
+    // Consulta produtos e as categorias relacionadas (JOIN)
+    const { data, error } = await supabase
+        .from('produtos')
+        .select(`
+            id,
+            title,
+            price,
+            image_url,
+            description,
+            produtos_categorias (
+                categorias ( slug )
+            )
+        `)
+        .order('id', { ascending: false });
+
+    if (error) {
+        console.error('Erro ao carregar produtos:', error);
+        toast.error('Erro ao carregar lista de produtos.');
+    } else if (data) {
+        // Mapeia o resultado para a interface Product
+        const mappedProducts = data.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            price: p.price,
+            image_url: p.image_url,
+            description: p.description,
+            // Extrai o slug da categoria, assumindo uma categoria por produto para simplificar
+            category_slug: p.produtos_categorias[0]?.categorias?.slug || 'sem-categoria'
+        }));
+        setProducts(mappedProducts as Product[]);
+    }
+    setLoadingProducts(false);
+  }
 
   useEffect(() => {
     fetchCategories();
+    fetchProducts();
   }, []);
 
-  // Handler genérico para inputs de texto e área de texto
+  // --- Handlers de Formulário ---
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
   };
 
-  // Handler para o Select (Categoria)
   const handleSelectChange = (value: string) => {
-    setFormData(prev => ({ ...prev, category: value }));
+    // Note que agora estamos salvando o SLUG da categoria
+    setFormData(prev => ({ ...prev, category_slug: value }));
   };
 
-  // Lógica de Adicionar/Salvar Edição
-  const handleSaveProduct = (e: React.FormEvent<HTMLFormElement>) => {
+  // Encontra o nome da categoria para exibição
+  const getCategoryName = (slug: string) => {
+    return categories.find(c => c.slug === slug)?.name || 'Categoria Desconhecida';
+  };
+
+  // --- Funções CRUD ---
+
+  const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    const { title, category_slug, price, image_url, description } = formData;
 
-    if (editingProduct) {
-        // Lógica de EDIÇÃO (Mock)
-        toast.success(`Produto '${formData.title}' atualizado com sucesso! (Mock)`);
-
-        // Atualizar lista local (Mock)
-        setProducts(prev => prev.map(p => 
-            p.id === editingProduct.id 
-                ? { ...p, ...formData, price: parseFloat(formData.price) } 
-                : p
-        ));
-        
-        // TODO: Implementar lógica de UPDATE do Supabase aqui
-
-    } else {
-        // Lógica de ADIÇÃO (Mock)
-        const newId = products.length > 0 ? products[0].id + 1 : 1;
-        const newProduct: Product = {
-            id: newId,
-            ...formData,
-            price: parseFloat(formData.price),
-        };
-        setProducts(prev => [newProduct, ...prev]);
-        toast.success("Novo produto adicionado com sucesso! (Mock)");
-        
-        // TODO: Implementar lógica de INSERT do Supabase aqui
+    const priceValue = parseFloat(price);
+    if (isNaN(priceValue)) {
+      toast.error("O preço deve ser um número válido.");
+      return;
     }
 
-    // Resetar estados e voltar para a lista
-    setEditingProduct(null);
-    setFormData(initialFormData);
-    setActiveTab("list");
+    const category = categories.find(c => c.slug === category_slug);
+    if (!category) {
+        toast.error("Categoria inválida ou não selecionada.");
+        return;
+    }
+
+    const productData = { title, image_url, description, price: priceValue };
+    let error = null;
+
+    if (editingProduct) {
+        // Lógica de EDIÇÃO (UPDATE)
+        ({ error } = await supabase
+            .from('produtos')
+            .update(productData)
+            .eq('id', editingProduct.id));
+            
+        if (!error) {
+            // Atualizar relacionamento de categoria
+            const { error: catError } = await supabase
+                .from('produtos_categorias')
+                .update({ category_id: category.id })
+                .eq('product_id', editingProduct.id);
+            
+            if (catError) console.error("Erro ao atualizar relação de categoria:", catError);
+
+            toast.success(`Produto '${title}' atualizado com sucesso!`);
+        }
+    } else {
+        // Lógica de ADIÇÃO (INSERT)
+        const { data: insertedProduct, error: insertError } = await supabase
+            .from('produtos')
+            .insert(productData)
+            .select('id'); 
+            
+        error = insertError;
+
+        if (insertedProduct && !insertError) {
+             // Inserir relacionamento de categoria
+             const { error: catError } = await supabase
+                .from('produtos_categorias')
+                .insert({ 
+                    product_id: insertedProduct[0].id, 
+                    category_id: category.id 
+                });
+             
+             if (catError) console.error("Erro ao inserir relação de categoria:", catError);
+            
+             toast.success(`Novo produto '${title}' adicionado com sucesso!`);
+        }
+    }
+    
+    if (error) {
+        console.error('Erro de Supabase (Salvar Produto):', error);
+        toast.error(`Falha ao salvar produto: ${error.message}`);
+    } else {
+        setEditingProduct(null);
+        setFormData(initialFormData);
+        setActiveTab("list");
+        fetchProducts(); // Recarrega os dados
+    }
   };
 
-  // ⭐️ handleBulkUpload ATUALIZADO PARA PLACEHOLDER LIMPO ⭐️
-  const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const handleDeleteProduct = async (productId: string, productName: string) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o produto: "${productName}"?`)) {
+        return;
+    }
+    
+    setLoadingProducts(true);
+
+    // O RLS deve garantir que a exclusão em 'produtos' cascateie para 'produtos_categorias'
+    const { error } = await supabase
+        .from('produtos')
+        .delete()
+        .eq('id', productId);
+
+    if (error) {
+        console.error('Erro ao excluir produto:', error);
+        toast.error(`Falha ao excluir: ${error.message}`);
+    } else {
+        toast.success(`Produto "${productName}" excluído com sucesso!`);
+        fetchProducts(); // Recarrega os dados
+    }
+    setLoadingProducts(false);
+  };
+    
+  // --- Importação em Massa (Lógica Real) ---
+    
+  // Função auxiliar para processar e preparar os dados (incluída no componente para facilidade)
+  const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
+      // Mapeamento de Slug para ID
+      const categoryMap: { [key: string]: string } = categories.reduce((map, cat) => {
+          map[cat.slug] = cat.id;
+          return map;
+      }, {});
+      
+      const finalProducts = [];
+      const finalProductCategories = [];
+      
+      // Mapeia o índice da coluna do cabeçalho
+      const headerMap: { [key: string]: number } = {};
+      headers.forEach((h, i) => {
+          // Normaliza o nome da coluna (ex: "URL da imagem" -> "url")
+          const normalizedHeader = h.toLowerCase().trim().replace(/ da imagem| de arquivo| título/g, '').replace(/preço/g, 'preco');
+          headerMap[normalizedHeader] = i;
+      });
+
+      const urlIndex = headerMap['url'];
+      const categoryIndex = headerMap['categoria'];
+      const titleIndex = headerMap['título'];
+      const descIndex = headerMap['descrição'];
+      const priceIndex = headerMap['preço']; 
+      
+      // Validação básica de cabeçalho
+      if (urlIndex === undefined || categoryIndex === undefined || titleIndex === undefined || priceIndex === undefined) {
+           throw new Error("Colunas obrigatórias (URL, Categoria, Título, Preço) não encontradas no cabeçalho. Verifique a ortografia.");
+      }
+
+      for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const rowNumber = i + 2; 
+          
+          const title = row[titleIndex]?.trim();
+          if (!title) continue; 
+
+          const tempProductId = crypto.randomUUID(); 
+
+          // Prepara o preço (limpa vírgula e converte)
+          const priceValue = row[priceIndex]?.toString().replace(',', '.').trim();
+
+          const product = {
+              id: tempProductId, 
+              image_url: row[urlIndex]?.trim() || null,
+              title: title,
+              description: row[descIndex]?.trim() || 'Sem descrição.',
+              price: parseFloat(priceValue) || 0, 
+              created_at: new Date().toISOString(),
+          };
+
+          finalProducts.push(product);
+
+          const categoryName = row[categoryIndex]?.trim();
+          const categorySlug = slugify(categoryName);
+          const categoryId = categoryMap[categorySlug];
+          
+          if (categoryId) {
+              finalProductCategories.push({
+                  product_id: tempProductId,
+                  category_id: categoryId,
+              });
+          } else {
+              toast.warning(`Linha ${rowNumber}: Categoria "${categoryName}" não encontrada. Produto será importado, mas sem categoria.`);
+          }
+      }
+      
+      return { finalProducts, finalProductCategories };
+  }
+    
+  // ⭐️ handleBulkUpload ATUALIZADO COM LÓGICA REAL ⭐️
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     
-    // Limpa o input imediatamente para permitir novo upload
+    // Limpa o input imediatamente
     e.target.value = '';
 
     if (!file) {
         toast.error("Nenhum arquivo selecionado.");
         return;
     }
-
-    // TODO: Implementar lógica real de leitura de arquivo (CSV/Excel) e INSERT MANY no Supabase
-    toast.info(`Simulação: Arquivo '${file.name}' recebido. A importação real será implementada na próxima fase.`);
     
-    // Mantém na aba bulk (opcional, pode voltar para list se preferir)
-    setActiveTab("bulk"); 
+    setUploading(true);
+    
+    try {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        
+        const jsonProducts = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
+
+        if (jsonProducts.length <= 1) {
+            toast.error("O arquivo está vazio ou contém apenas cabeçalho.");
+            return;
+        }
+
+        const [headers, ...rows] = jsonProducts;
+
+        // Processa e prepara os dados
+        const { finalProducts, finalProductCategories } = await processAndPrepareProducts(rows, headers);
+        
+        if (finalProducts.length === 0) {
+             toast.info("Nenhum produto válido encontrado para importação.");
+             return;
+        }
+
+        // 1. Inserir Produtos em Lote
+        const { error: productsError } = await supabase
+            .from('produtos')
+            .insert(finalProducts);
+
+        if (productsError) throw new Error(`Falha ao inserir produtos: ${productsError.message}`);
+
+        // 2. Inserir Relações Produto-Categoria em Lote
+        if (finalProductCategories.length > 0) {
+             const { error: categoriesError } = await supabase
+                .from('produtos_categorias')
+                .insert(finalProductCategories);
+                
+             if (categoriesError) throw new Error(`Falha ao inserir categorias: ${categoriesError.message}`);
+        }
+
+        toast.success(`Sucesso! ${finalProducts.length} produtos importados e categorizados.`);
+        fetchProducts(); // Recarrega os produtos
+        
+    } catch (error) {
+        console.error('Erro na importação:', error);
+        toast.error(`Falha na importação. Verifique o formato do arquivo: ${error.message}`);
+    } finally {
+        setUploading(false);
+    }
   };
   // -------------------------------------------------------------
 
-  // Função para Entrar no Modo de Edição
+  // --- Funções de UI ---
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setFormData({
         title: product.title,
-        category: product.category,
+        category_slug: product.category_slug,
         price: product.price.toFixed(2),
-        imageUrl: product.imageUrl,
+        image_url: product.image_url,
         description: product.description,
     });
-    // Mudar para a aba de formulário
     setActiveTab("add");
   };
 
-  // Função para Excluir Produto (Lógica Mock - Mantida)
-  const handleDeleteProduct = (productId: number, productName: string) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o produto: "${productName}"?`)) {
-        return;
-    }
-
-    const updatedProducts = products.filter(p => p.id !== productId);
-    setProducts(updatedProducts);
-    
-    toast.success(`Produto "${productName}" excluído com sucesso (localmente).`);
-
-    // TODO: Adicionar lógica real de DELETE do Supabase aqui no futuro
-  };
-  
-  // Função para cancelar a edição
   const handleCancelEdit = () => {
     setEditingProduct(null);
     setFormData(initialFormData);
     setActiveTab("list");
   };
+  
+  // Função de pesquisa no frontend (otimização)
+  const [searchTerm, setSearchTerm] = useState("");
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm.trim()) return products;
+    
+    const lowerCaseSearch = searchTerm.toLowerCase().trim();
+    
+    return products.filter(product => 
+      product.title.toLowerCase().includes(lowerCaseSearch) ||
+      product.description.toLowerCase().includes(lowerCaseSearch) ||
+      product.category_slug.toLowerCase().includes(lowerCaseSearch)
+    );
+  }, [products, searchTerm]);
+
 
   return (
     <div className="space-y-8">
@@ -189,7 +418,7 @@ const Products = () => {
         <div>
           <h1 className="text-3xl font-bold mb-2">Gerenciar Produtos</h1>
           <p className="text-muted-foreground">
-            Adicione e gerencie os produtos da loja
+            Adicione, edite e gerencie os produtos da loja
           </p>
         </div>
       </div>
@@ -218,18 +447,18 @@ const Products = () => {
                     id="title"
                     value={formData.title} 
                     onChange={handleInputChange} 
-                    placeholder="Nome da imagem"
+                    placeholder="Nome do produto"
                     required
                   />
                 </div>
 
                 {/* Categoria */}
                 <div className="space-y-2">
-                  <Label htmlFor="category">Categoria</Label>
+                  <Label htmlFor="category_slug">Categoria</Label>
                   <Select 
                     required 
                     disabled={loadingCategories}
-                    value={formData.category}
+                    value={formData.category_slug}
                     onValueChange={handleSelectChange}
                   > 
                     <SelectTrigger>
@@ -263,11 +492,11 @@ const Products = () => {
 
                 {/* URL da Imagem */}
                 <div className="space-y-2">
-                  <Label htmlFor="imageUrl">URL da Imagem Externa</Label>
+                  <Label htmlFor="image_url">URL da Imagem Externa</Label>
                   <Input
-                    id="imageUrl"
+                    id="image_url"
                     type="url"
-                    value={formData.imageUrl}
+                    value={formData.image_url}
                     onChange={handleInputChange}
                     placeholder="https://exemplo.com/imagem.png"
                     required
@@ -282,7 +511,7 @@ const Products = () => {
                   id="description"
                   value={formData.description}
                   onChange={handleInputChange}
-                  placeholder="Descreva a imagem..."
+                  placeholder="Descreva o produto..."
                   rows={4}
                   required
                 />
@@ -315,30 +544,41 @@ const Products = () => {
           <Card className="p-6">
             <h3 className="text-xl font-bold mb-6">Upload em Massa</h3>
             <div className="space-y-6">
+                
               <div className="rounded-lg border-2 border-dashed p-12 text-center">
-                <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium mb-2">
-                  Faça upload de arquivo CSV ou Excel
-                </p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  O arquivo deve conter: URL, Categoria, Título, Descrição, Preço
-                </p>
-                <Input
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  className="max-w-xs mx-auto"
-                  onChange={handleBulkUpload}
-                />
+                {uploading ? (
+                    <div className="flex flex-col items-center justify-center">
+                        <Loader2 className="mx-auto h-12 w-12 text-blue-500 mb-4 animate-spin" />
+                        <p className="text-lg font-medium">Processando {fileName}...</p>
+                        <p className="text-sm text-muted-foreground">Isso pode levar alguns segundos dependendo do tamanho do arquivo.</p>
+                    </div>
+                ) : (
+                    <>
+                        <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                        <p className="text-lg font-medium mb-2">
+                            Faça upload de arquivo CSV ou Excel
+                        </p>
+                        <p className="text-sm text-muted-foreground mb-4">
+                            O arquivo deve conter: URL, Categoria, Título, Descrição, Preço
+                        </p>
+                        <Input
+                            type="file"
+                            accept=".csv, .xlsx, .xls"
+                            className="max-w-xs mx-auto"
+                            onChange={handleBulkUpload}
+                        />
+                    </>
+                )}
               </div>
 
               <div className="rounded-lg bg-muted/30 p-4">
                 <h4 className="font-semibold mb-2">Formato do Arquivo:</h4>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>• Coluna 1: URL da imagem</p>
-                  <p>• Coluna 2: Categoria (slug: nature, technology, abstract, etc)</p>
-                  <p>• Coluna 3: Título</p>
-                  <p>• Coluna 4: Descrição</p>
-                  <p>• Coluna 5: Preço (formato: 29.90)</p>
+                  <p>• Coluna 1: **URL da imagem**</p>
+                  <p>• Coluna 2: **Categoria** (use o **SLUG** da categoria, ex: `acai`, `salgados`)</p>
+                  <p>• Coluna 3: **Título**</p>
+                  <p>• Coluna 4: **Descrição**</p>
+                  <p>• Coluna 5: **Preço** (formato: `29.90` ou `29,90`)</p>
                 </div>
               </div>
             </div>
@@ -347,22 +587,46 @@ const Products = () => {
 
         <TabsContent value="list">
           <Card className="p-6">
-            <h3 className="text-xl font-bold mb-6">Produtos Cadastrados</h3>
+            <h3 className="text-xl font-bold mb-6">Produtos Cadastrados ({products.length})</h3>
+            
+            {/* Campo de Pesquisa */}
+            <Input 
+                type="text"
+                placeholder="Pesquisar produtos por título, descrição ou categoria..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="mb-6"
+            />
+            
+            {/* Loading e Vazio */}
+            {loadingProducts && (
+                 <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-6 w-6 mr-2 animate-spin" />
+                    Carregando produtos...
+                </div>
+            )}
+            {!loadingProducts && products.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">Nenhum produto cadastrado. Adicione um para começar.</p>
+            )}
+            {!loadingProducts && products.length > 0 && filteredProducts.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">Nenhum produto corresponde à sua pesquisa.</p>
+            )}
+
             <div className="space-y-4">
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <div
                   key={product.id}
                   className="flex items-center gap-4 p-4 rounded-lg border"
                 >
                   <img
-                    src={product.imageUrl}
+                    src={product.image_url} // Mudado para image_url
                     alt={product.title}
                     className="h-16 w-16 rounded-lg object-cover"
                   />
                   <div className="flex-1">
                     <h4 className="font-semibold">{product.title}</h4>
                     <p className="text-sm text-muted-foreground">
-                      {product.category} • R$ {product.price.toFixed(2)}
+                      {getCategoryName(product.category_slug)} • R$ {product.price.toFixed(2)}
                     </p>
                   </div>
                   
