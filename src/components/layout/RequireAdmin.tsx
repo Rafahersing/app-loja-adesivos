@@ -1,8 +1,8 @@
-// src/components/layout/RequireAdmin.tsx
+// src/components/layout/RequireAdmin.tsx (CORRIGIDO)
 
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { supabase } from "../../lib/utils"; // Assumindo que RequireAdmin está em src/components/layout/
+import { supabase } from "../../lib/utils"; // Confirme o caminho
 
 const RequireAdmin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -10,37 +10,32 @@ const RequireAdmin = () => {
 
   useEffect(() => {
     async function checkAdmin() {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      // 1. Obter o usuário
+      const { data: { user } } = await supabase.auth.getUser();
 
-      console.log("Usuário retornado:", user); // OBRIGATÓRIO
-
+      let userIsAdmin = false;
+      
+      // 2. Verificar o status de administrador, se o usuário existir
       if (user) {
-        console.log("Metadata do App:", user.app_metadata); // OBRIGATÓRIO
-        const userIsAdmin = user.app_metadata.is_admin === true;
-        console.log("Resultado da verificação isAdmin:", userIsAdmin); // OBRIGATÓRIO
-        
-        setIsAdmin(userIsAdmin);
+        // Garantindo que a app_metadata está sendo verificada corretamente
+        userIsAdmin = user.app_metadata.is_admin === true;
       }
       
-      // Checagem primária: Usuário não logado
-      if (!user || error) {
-        setIsLoading(false);
-        // O <Navigate> abaixo cuida do redirecionamento
-        return; 
-      }
+      // 3. Checagem Principal: O usuário está logado E ele é admin?
+      // Se user for null, userIsAdmin será false, e o acesso será negado.
+      setIsAdmin(!!user && userIsAdmin);
 
-      // Checagem secundária: Nível de permissão (a flag 'is_admin')
-      const userIsAdmin = user.app_metadata.is_admin === true;
-      
-      setIsAdmin(userIsAdmin);
+      // 4. ESSENCIAL: Encerrar o estado de carregamento, independentemente do resultado.
+      // ISSO IMPEDE O BLOQUEIO DE TELA BRANCA.
       setIsLoading(false);
     }
     
     checkAdmin();
   }, []);
 
-  // 1. Mostrar Carregando (Loading)
+  // 1. Mostrar Carregando
   if (isLoading) {
+    // É importante ter um feedback visual
     return (
       <div className="min-h-screen flex items-center justify-center">
         Verificando Acesso Administrativo...
@@ -48,13 +43,12 @@ const RequireAdmin = () => {
     );
   }
 
-  // 2. Acesso Bloqueado: Redireciona para a Home
+  // 2. Acesso Bloqueado: Redireciona para a Home (se não for admin)
   if (!isAdmin) {
-    // Se não for admin, ele redireciona instantaneamente para a home.
     return <Navigate to="/" replace />;
   }
 
-  // 3. Acesso Permitido: Renderiza o componente filho (AdminLayout)
+  // 3. Acesso Permitido: Renderiza o componente filho
   return <Outlet />;
 };
 
