@@ -1,18 +1,17 @@
 // src/pages/admin/categories.tsx
 
 import React, { useState, useEffect } from "react";
-// Assumindo que você tem este componente para proteger a rota
 import RequireAdmin from "@/components/layout/RequireAdmin"; 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-// Importa as funções que você confirmou em src/lib/utils.ts
+// IMPORTANTE: Ajuste o caminho se o alias @/lib/utils não funcionar.
+// Tente: import { supabase, slugify } from '../../lib/utils'; se precisar.
 import { supabase, slugify } from '@/lib/utils'; 
 
 interface Category {
-  // O ID do Supabase é um UUID, tratado como string
   id: string; 
   name: string;
   slug: string;
@@ -27,7 +26,6 @@ const AdminCategoriesPage: React.FC = () => {
   // 1. FUNÇÃO PARA BUSCAR CATEGORIAS NO SUPABASE
   const fetchCategories = async () => {
     setLoading(true);
-    // Busca id, name e slug da tabela 'categorias'
     const { data, error } = await supabase
       .from('categorias')
       .select('id, name, slug')
@@ -44,7 +42,6 @@ const AdminCategoriesPage: React.FC = () => {
   };
 
   useEffect(() => {
-    // Carrega as categorias ao montar o componente
     fetchCategories();
   }, []);
 
@@ -58,7 +55,6 @@ const AdminCategoriesPage: React.FC = () => {
       return;
     }
     
-    // Gera o slug e valida se já existe
     const slug = slugify(name);
     if (categories.some(c => c.slug === slug)) {
         toast.error(`A categoria "${name}" (slug: ${slug}) já existe.`);
@@ -67,19 +63,16 @@ const AdminCategoriesPage: React.FC = () => {
 
     setIsSubmitting(true);
     
-    // Insere no Supabase
     const { error } = await supabase
       .from('categorias')
       .insert({ name: name, slug: slug });
 
     if (error) {
       console.error('Erro ao adicionar categoria:', error);
-      // O erro de unique constraint será capturado aqui se o slug for duplicado no banco
       toast.error(`Erro ao adicionar: ${error.message}`);
     } else {
       toast.success(`Categoria "${name}" adicionada com sucesso!`);
       setNewCategoryName("");
-      // Recarrega a lista para mostrar a nova categoria
       fetchCategories(); 
     }
     
@@ -94,7 +87,6 @@ const AdminCategoriesPage: React.FC = () => {
 
     setLoading(true);
     
-    // Deleta do Supabase
     const { error } = await supabase
       .from('categorias')
       .delete()
@@ -105,7 +97,6 @@ const AdminCategoriesPage: React.FC = () => {
       toast.error(`Erro ao excluir: ${error.message}`);
     } else {
       toast.success(`Categoria "${name}" excluída com sucesso!`);
-      // Remove do state local para atualização instantânea
       setCategories(prev => prev.filter(c => c.id !== id));
     }
     
