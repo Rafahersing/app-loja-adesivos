@@ -2,7 +2,12 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+  ],
   prefix: "",
   theme: {
     container: {
@@ -12,60 +17,34 @@ export default {
         "2xl": "1400px",
       },
     },
-  extend: {
-    colors: {
-      background: "#000000", // Preto principal
-      foreground: "#ffffff", // Texto principal branco
-      muted: "#1A1A1A", // Cinza escuro para áreas secundárias
-      "muted-foreground": "#B3B3B3", // Texto secundário
-      primary: "#E7D1B0", // Dourado suave
-      "primary-foreground": "#000000", // Texto sobre o dourado
-      secondary: "#F6EBD7", // Dourado mais claro
-      accent: "#F6EBD7", // Detalhes sutis
-      border: "#2A2A2A", // Linhas e bordas discretas
-      card: "#111111", // Fundo de cartões/painéis
-    },
-  },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
-        },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
+    extend: {
+      colors: {
+        background: "#000000", // Preto principal
+        foreground: "#ffffff", // Texto principal branco
+        muted: "#1A1A1A", // Cinza escuro para áreas secundárias
+        "muted-foreground": "#B3B3B3", // Texto secundário
+        primary: "#E7D1B0", // Dourado suave
+        "primary-foreground": "#000000", // Texto sobre o dourado
+        secondary: "#F6EBD7", // Dourado mais claro
+        accent: "#F6EBD7", // Detalhes sutis
+        border: "#2A2A2A", // Linhas e bordas discretas
+        card: "#111111", // Fundo de cartões/painéis
       },
       backgroundImage: {
-        'gradient-primary': 'var(--gradient-primary)',
-        'gradient-hero': 'var(--gradient-hero)',
-        'gradient-card': 'var(--gradient-card)',
+        "gradient-primary": "linear-gradient(135deg, #E7D1B0, #F6EBD7)",
+        "gradient-hero": "linear-gradient(135deg, #111111, #1A1A1A)",
+        "gradient-card": "linear-gradient(135deg, #1A1A1A, #0A0A0A)",
       },
       boxShadow: {
-        'sm': 'var(--shadow-sm)',
-        'md': 'var(--shadow-md)',
-        'lg': 'var(--shadow-lg)',
-        'glow': 'var(--shadow-glow)',
+        sm: "0 1px 2px rgba(0, 0, 0, 0.05)",
+        md: "0 4px 6px rgba(0, 0, 0, 0.1)",
+        lg: "0 10px 15px rgba(0, 0, 0, 0.15)",
+        glow: "0 0 20px rgba(231, 209, 176, 0.3)",
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "1rem",
+        md: "0.75rem",
+        sm: "0.5rem",
       },
       keyframes: {
         "accordion-down": {
@@ -85,8 +64,8 @@ export default {
           to: { transform: "translateX(0)" },
         },
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 20px hsl(262 83% 58% / 0.3)" },
-          "50%": { boxShadow: "0 0 40px hsl(262 83% 58% / 0.6)" },
+          "0%, 100%": { boxShadow: "0 0 20px rgba(231, 209, 176, 0.3)" },
+          "50%": { boxShadow: "0 0 40px rgba(231, 209, 176, 0.6)" },
         },
       },
       animation: {
