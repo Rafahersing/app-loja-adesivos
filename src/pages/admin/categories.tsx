@@ -1,7 +1,9 @@
 // src/pages/admin/categories.tsx
 
 import React, { useState, useEffect } from "react";
-import RequireAdmin from "@/components/layout/RequireAdmin"; 
+// ⭐️ COMENTADO PARA TESTE: A FALHA PODE ESTAR NESTE COMPONENTE ⭐️
+// import RequireAdmin from "@/components/layout/RequireAdmin"; 
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,19 +25,22 @@ const AdminCategoriesPage: React.FC = () => {
 
   // 1. FUNÇÃO PARA BUSCAR CATEGORIAS NO SUPABASE
   const fetchCategories = async () => {
+    // Adicionando um log de segurança para ter certeza que esta função é chamada
+    console.log("DEBUG: fetchCategories está sendo executada."); 
     setLoading(true);
-    // Busca na tabela 'categorias'
+
+    // O erro de conexão ocorrerá aqui se as variáveis de ambiente estiverem ausentes.
     const { data, error } = await supabase
-      .from('categorias')
+      .from('categorias') // A tabela é 'categorias'
       .select('id, name, slug')
       .order('name', { ascending: true });
 
     if (error) {
-      console.error('Erro ao carregar categorias:', error);
-      // Este erro ocorrerá se as variáveis de ambiente estiverem ausentes (401)
-      toast.error('Erro ao carregar lista de categorias. Verifique a conexão do Supabase.');
+      console.error('ERRO SUPABASE:', error);
+      toast.error('Erro ao carregar lista de categorias. Verifique a RLS e as Variáveis de Ambiente.');
       setCategories([]); 
     } else if (data) {
+      console.log("DEBUG: Categorias carregadas:", data);
       setCategories(data as Category[]);
     }
     setLoading(false);
@@ -55,7 +60,6 @@ const AdminCategoriesPage: React.FC = () => {
       return;
     }
     
-    // Gera o slug
     const slug = slugify(name);
     if (categories.some(c => c.slug === slug)) {
         toast.error(`A categoria "${name}" (slug: ${slug}) já existe.`);
@@ -64,7 +68,6 @@ const AdminCategoriesPage: React.FC = () => {
 
     setIsSubmitting(true);
     
-    // Insere no Supabase
     const { error } = await supabase
       .from('categorias')
       .insert({ name: name, slug: slug });
@@ -89,7 +92,6 @@ const AdminCategoriesPage: React.FC = () => {
 
     setLoading(true);
     
-    // Deleta do Supabase
     const { error } = await supabase
       .from('categorias')
       .delete()
@@ -108,9 +110,10 @@ const AdminCategoriesPage: React.FC = () => {
 
 
   return (
-    <RequireAdmin>
+    // ⭐️ REMOVIDO: Se a página carregar agora, o problema é RequireAdmin.
+    // <RequireAdmin> 
       <div className="container mx-auto p-4 space-y-8">
-        <h1 className="text-3xl font-bold">Gerenciar Categorias</h1>
+        <h1 className="text-3xl font-bold">Gerenciar Categorias (Teste de Renderização)</h1>
 
         {/* --- Formulário de Adição --- */}
         <Card className="p-6 space-y-6">
@@ -187,7 +190,7 @@ const AdminCategoriesPage: React.FC = () => {
         </Card>
 
       </div>
-    </RequireAdmin>
+    // </RequireAdmin>
   );
 };
 
