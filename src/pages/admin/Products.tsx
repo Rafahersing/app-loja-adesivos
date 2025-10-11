@@ -63,12 +63,14 @@ const Products = () => {
   // --- Funções de Carregamento de Dados ---
 
   // 1. Buscar Categorias
-  const fetchCategories = async () => {
-    setLoadingCategories(true);
+  const fetchProducts = async () => {
+    setLoadingProducts(true);
+
     const { data, error } = await supabase
-      .from('categorias')
-      .select('id, name, slug')
-      .order('name', { ascending: true });
+        .from('produtos')
+        // ESTA LINHA DEVE ESTAR LIMPA. SEM COMENTÁRIOS DENTRO DAS ASPAS!
+        .select(`id, nome, preço, imagem_url, descricao, produtos_categorias!inner(category_id)`)
+        .order('id', { ascending: false });
 
     if (error) {
       console.error('Erro ao carregar categorias para produtos:', error);
