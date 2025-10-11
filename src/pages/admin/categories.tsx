@@ -6,7 +6,6 @@ import CategoryManager from '@/components/admin/CategoryManager';
 
 const AdminCategoriesPage: React.FC = () => {
     return (
-        // ⚠️ REINTRODUZIDO O WRAPPER REQUIREADMIN CORRIGIDO ⚠️
         <RequireAdmin>
             <div className="container mx-auto p-4">
                 <CategoryManager />
