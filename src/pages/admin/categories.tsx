@@ -1,16 +1,16 @@
-// src/pages/admin/categories.tsx (CÓDIGO FINAL E PROTEGIDO)
+// src/pages/admin/categories.tsx (CÓDIGO FINAL CORRETO)
 
 import React from 'react';
-import RequireAdmin from '@/components/layout/RequireAdmin'; // Reintroduzido
+// ⚠️ NÃO IMPORTAR REQUIREADMIN AQUI ⚠️
 import CategoryManager from '@/components/admin/CategoryManager'; 
 
 const AdminCategoriesPage: React.FC = () => {
     return (
-        <RequireAdmin>
-            <div className="container mx-auto p-4">
-                <CategoryManager />
-            </div>
-        </RequireAdmin>
+        // ⭐️ REMOVA O WRAPPER REQUIREADMIN ⭐️
+        // A proteção já é feita no App.tsx
+        <div className="container mx-auto p-4">
+            <CategoryManager />
+        </div>
     );
 };
 
