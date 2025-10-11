@@ -164,82 +164,51 @@ const fetchProducts = async () => {
 
   // --- Funções CRUD ---
 
-  const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    const { title, category_slug, price, image_url, description } = formData;
+ // src/pages/admin/Products.tsx
 
-    const priceValue = parseFloat(price);
-    if (isNaN(priceValue)) {
-      toast.error("O preço deve ser um número válido.");
-      return;
-    }
+const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  
+  // MUDAR title e description para nome e descricao
+  const { nome, category_slug, price, image_url, descricao } = formData;
 
-    const category = categories.find(c => c.slug === category_slug);
-    if (!category) {
-        toast.error("Categoria inválida ou não selecionada.");
-        return;
-    }
+  // ... (código de validação de preço e categoria)
 
-    // Campos da tabela 'produtos'
-    const productData = { title, image_url, description, price: priceValue };
-    let error = null;
+  // Campos da tabela 'produtos'
+  // Usar nome, descricao e preço (com acento), e image_url
+  const productData = { nome, imagem_url: image_url, descricao, preço: priceValue };
+  let error = null;
 
-    if (editingProduct) {
-        // Lógica de EDIÇÃO (UPDATE)
-        ({ error } = await supabase
-            .from('produtos')
-            .update(productData)
-            .eq('id', editingProduct.id));
-            
-        if (!error) {
-            // Atualizar relacionamento de categoria
-            const { error: catError } = await supabase
-                .from('produtos_categorias')
-                .upsert(
-                    { product_id: editingProduct.id, category_id: category.id },
-                    { onConflict: 'product_id', ignoreDuplicates: false }
-                );
-            
-            if (catError) console.error("Erro ao atualizar relação de categoria:", catError);
+  if (editingProduct) {
+      // Lógica de EDIÇÃO (UPDATE)
+      ({ error } = await supabase
+          .from('produtos')
+          .update(productData)
+          .eq('id', editingProduct.id));
+          
+      // ... (código de atualização de categoria e sucesso)
 
-            toast.success(`Produto '${title}' atualizado com sucesso!`);
-        }
-    } else {
-        // Lógica de ADIÇÃO (INSERT)
-        const { data: insertedProduct, error: insertError } = await supabase
-            .from('produtos')
-            .insert(productData)
-            .select('id'); 
-            
-        error = insertError;
+      if (!error) {
+          // ...
+          toast.success(`Produto '${nome}' atualizado com sucesso!`);
+      }
+  } else {
+      // Lógica de ADIÇÃO (INSERT)
+      const { data: insertedProduct, error: insertError } = await supabase
+          .from('produtos')
+          .insert(productData)
+          .select('id'); 
+          
+      error = insertError;
 
-        if (insertedProduct && insertedProduct.length > 0 && !insertError) {
-             // Inserir relacionamento de categoria
-             const { error: catError } = await supabase
-                .from('produtos_categorias')
-                .insert({ 
-                    product_id: insertedProduct[0].id, 
-                    category_id: category.id 
-                });
-             
-             if (catError) console.error("Erro ao inserir relação de categoria:", catError);
-            
-             toast.success(`Novo produto '${title}' adicionado com sucesso!`);
-        }
-    }
-    
-    if (error) {
-        console.error('Erro de Supabase (Salvar Produto):', error);
-        toast.error(`Falha ao salvar produto: ${error.message}`);
-    } else {
-        setEditingProduct(null);
-        setFormData(initialFormData);
-        setActiveTab("list");
-        fetchProducts(); // Recarrega os dados
-    }
-  };
-
+      if (insertedProduct && insertedProduct.length > 0 && !insertError) {
+           // ...
+           toast.success(`Novo produto '${nome}' adicionado com sucesso!`);
+      }
+  }
+  
+  // ...
+};
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
     if (!window.confirm(`Tem certeza que deseja excluir o produto: "${productName}"?`)) {
