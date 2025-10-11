@@ -20,32 +20,40 @@ interface Category {
   slug: string;
 }
 
+// src/pages/admin/Products.tsx
+
 // Interface para o produto (Ajustada para corresponder ao DB)
 interface Product {
     id: string; 
-    title: string;
+    // MUDAR 'title' para 'nome'
+    nome: string; 
     image_url: string; 
     category_slug: string; 
     price: number;
-    description: string;
+    // MUDAR 'description' para 'descricao' (com c cedilha)
+    descricao: string; 
 }
 
 // Interface para o estado do formulário
 interface FormData {
-    title: string;
+    // MUDAR 'title' para 'nome'
+    nome: string; 
     category_slug: string; 
     price: string;
     image_url: string; 
-    description: string;
+    // MUDAR 'description' para 'descricao' (com c cedilha)
+    descricao: string; 
 }
 
 // Estado inicial do formulário
 const initialFormData: FormData = {
-    title: '',
+    // MUDAR 'title' para 'nome'
+    nome: '', 
     category_slug: '',
     price: '',
     image_url: '',
-    description: '',
+    // MUDAR 'description' para 'descricao' (com c cedilha)
+    descricao: '', 
 };
 
 const Products = () => {
