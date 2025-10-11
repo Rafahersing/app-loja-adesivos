@@ -80,20 +80,14 @@ const Products = () => {
   };
     
   // 2. Buscar Produtos Reais
-  const fetchProducts = async () => {
+const fetchProducts = async () => {
     setLoadingProducts(true);
     
-    // ⭐️ AJUSTE: Usar os nomes de colunas do Supabase e simplificar o SELECT (evita erro 400)
+    // ⭐️ CORREÇÃO CRÍTICA: Remover comentários e espaços desnecessários
+    // O SELECT deve ser uma string limpa
     const { data, error } = await supabase
         .from('produtos')
-        .select(`
-            id,
-            nome, // Nome da coluna no DB
-            preço, // Nome da coluna no DB
-            imagem_url, // Nome da coluna no DB
-            descricao, // Nome da coluna no DB
-            produtos_categorias!inner(category_id)
-        `)
+        .select(`id, nome, preço, imagem_url, descricao, produtos_categorias!inner(category_id)`)
         .order('id', { ascending: false });
 
     if (error) {
@@ -125,8 +119,7 @@ const Products = () => {
         setProducts(mappedProducts as Product[]);
     }
     setLoadingProducts(false);
-  }
-
+}
   // Use um useEffect para buscar categorias primeiro e, em seguida, produtos
   useEffect(() => {
     fetchCategories();
