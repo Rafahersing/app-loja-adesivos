@@ -149,10 +149,34 @@ const fetchProducts = async () => {
 
   // --- Handlers de Formulário ---
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+  // src/pages/admin/Products.tsx
+
+const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // Ajusta a lógica para mapear os IDs do Input para as chaves do FormData
+  const { id, value } = e.target;
+  
+  // Mapeia o ID do input (que ainda é 'title' e 'description') para o nome da coluna no FormData (nome, descricao)
+  const keyMap: { [key: string]: keyof FormData } = {
+      'title': 'nome',
+      'description': 'descricao',
+      'price': 'price',
+      'image_url': 'image_url',
+      'category_slug': 'category_slug'
   };
+  
+  const key = keyMap[id];
+  
+  if (key) {
+    setFormData(prev => ({ ...prev, [key]: value }));
+  } else {
+    // Para 'price' e 'image_url' que não mudaram
+    setFormData(prev => ({ ...prev, [id as keyof FormData]: value }));
+  }
+};
+// NOTA: Para simplificar, você pode alterar o ID dos seus Inputs no JSX:
+// <Input id="title" para <Input id="nome"
+// <Textarea id="description" para <Textarea id="descricao"
+// ... e assim por diante.
 
   const handleSelectChange = (value: string) => {
     setFormData(prev => ({ ...prev, category_slug: value }));
@@ -234,91 +258,49 @@ const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     
   // --- Importação em Massa (Lógica Real) ---
     
-  const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
-      // Mapeamento de Slug para ID
-      const categoryMap: { [key: string]: string } = categories.reduce((map, cat) => {
-          map[cat.slug] = cat.id;
-          return map;
-      }, {});
-      
-      const finalProducts = [];
-      const finalProductCategories = [];
-      
-      // Mapeia o índice da coluna do cabeçalho
-      const headerMap: { [key: string]: number } = {};
-      
-      // Mapeamento tolerante a diferentes nomes/casos
-      headers.forEach((h, i) => {
-          const normalized = h.toLowerCase().trim()
-            .replace(/[^a-z0-9\s]/g, ''); // Permite espaços para checar 'url da imagem'
-            
-          // ⭐️ AJUSTE NO MAPEAMENTO DO URL DA IMAGEM ⭐️
-          if (normalized.includes('url') || normalized.includes('imagem')) headerMap['url'] = i;
-          else if (normalized.includes('categoria')) headerMap['categoria'] = i;
-          else if (normalized.includes('titulo') || normalized.includes('nome')) headerMap['titulo'] = i;
-          else if (normalized.includes('descricao')) headerMap['descricao'] = i;
-          else if (normalized.includes('preco') || normalized.includes('valor')) headerMap['preco'] = i;
-      });
+  // src/pages/admin/Products.tsx
 
-      const urlIndex = headerMap['url'];
-      const categoryIndex = headerMap['categoria'];
-      const titleIndex = headerMap['titulo'];
-      const descIndex = headerMap['descricao'];
-      const priceIndex = headerMap['preco']; 
-      
-      // Verificação Mínima
-      if (titleIndex === undefined) {
-           throw new Error("Colunas obrigatórias (Título) não encontradas. Verifique se o cabeçalho contém 'Título' ou 'Nome'.");
-      }
-      
-      // Aviso se faltar algo crítico (além do Título)
-      if (urlIndex === undefined || categoryIndex === undefined || priceIndex === undefined) {
-           toast.warning("Atenção: Nem todas as colunas obrigatórias (URL, Categoria, Preço) foram encontradas. A importação pode resultar em produtos incompletos.");
-      }
-      
-      for (let i = 0; i < rows.length; i++) {
-          const row = rows[i];
-          const rowNumber = i + 2; 
-          
-          const title = row[titleIndex]?.trim();
-          if (!title) continue; 
+const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
+    // ... (código de categoryMap)
 
-          const tempProductId = crypto.randomUUID(); 
+    const finalProducts = [];
+    // ...
 
-          // Prepara o preço, verifica se o índice existe
-          const priceValue = (priceIndex !== undefined && row[priceIndex]) 
-                             ? row[priceIndex].toString().replace(',', '.').trim() 
-                             : '0';
+    // ... (código de headerMap)
+    
+    // ... (código de índices)
+    
+    // ... (código de verificação mínima)
 
-          const product = {
-              id: tempProductId, 
-              image_url: (urlIndex !== undefined && row[urlIndex]) ? row[urlIndex].trim() : null,
-              title: title,
-              description: (descIndex !== undefined && row[descIndex]) ? row[descIndex].trim() : 'Sem descrição.',
-              price: parseFloat(priceValue) || 0, 
-          };
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNumber = i + 2; 
+        
+        const title = row[titleIndex]?.trim();
+        if (!title) continue; 
 
-          finalProducts.push(product);
+        const tempProductId = crypto.randomUUID(); 
 
-          // Lógica de categoria
-          if (categoryIndex !== undefined && row[categoryIndex]) {
-             const categoryName = row[categoryIndex]?.trim();
-             const categorySlug = slugify(categoryName);
-             const categoryId = categoryMap[categorySlug];
-          
-             if (categoryId) {
-                 finalProductCategories.push({
-                     product_id: tempProductId,
-                     category_id: categoryId,
-                 });
-             } else {
-                 toast.warning(`Linha ${rowNumber}: Categoria "${categoryName}" não encontrada. Produto será importado, mas sem categoria.`);
-             }
-          }
-      }
-      
-      return { finalProducts, finalProductCategories };
-  }
+        const priceValue = (priceIndex !== undefined && row[priceIndex]) 
+                           ? row[priceIndex].toString().replace(',', '.').trim() 
+                           : '0';
+
+        const product = {
+            id: tempProductId, 
+            // Usar o nome das colunas do Supabase aqui!
+            imagem_url: (urlIndex !== undefined && row[urlIndex]) ? row[urlIndex].trim() : null, // imagem_url
+            nome: title, // nome
+            descricao: (descIndex !== undefined && row[descIndex]) ? row[descIndex].trim() : 'Sem descrição.', // descricao
+            preço: parseFloat(priceValue) || 0, // preço (com acento)
+        };
+
+        finalProducts.push(product);
+
+        // ... (código de categoria)
+    }
+    
+    return { finalProducts, finalProductCategories };
+}
     
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
