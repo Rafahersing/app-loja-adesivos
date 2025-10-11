@@ -7,114 +7,48 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-// IMPORTANTE: Ajuste o caminho se o alias @/lib/utils não funcionar.
-// Tente: import { supabase, slugify } from '../../lib/utils'; se precisar.
+// IMPORTANTE: Mantenha esta linha, mas não usaremos supabase/slugify
 import { supabase, slugify } from '@/lib/utils'; 
 
-interface Category {
-  id: string; 
-  name: string;
-  slug: string;
-}
+
+// MOCK de dados para renderização
+const MOCK_CATEGORIES = [
+  { id: '1', name: 'Açaí', slug: 'acai' },
+  { id: '2', name: 'Salgados', slug: 'salgados' },
+];
 
 const AdminCategoriesPage: React.FC = () => {
-  const [categories, setCategories] = useState<Category[]>([]);
+  // Use MOCK_CATEGORIES em vez de []
+  const [categories, setCategories] = useState<any[]>(MOCK_CATEGORIES); 
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false); // Mantido como false
+  const [isSubmitting, setIsSubmitting] = useState(false); // Mantido como false
 
-  // 1. FUNÇÃO PARA BUSCAR CATEGORIAS NO SUPABASE
-  const fetchCategories = async () => {
-    // ⭐️ TESTE DE DEBBUG: Adicione um log aqui para ver se a função é chamada
-    console.log("Tentando buscar categorias..."); 
-    
-    setLoading(true);
-    // VERIFIQUE: Se o objeto 'supabase' ou a função 'from' são inválidos, quebra aqui.
-    const { data, error } = await supabase
-      .from('categorias') // VERIFIQUE: O nome da sua tabela é 'categorias'
-      .select('id, name, slug')
-      .order('name', { ascending: true });
-
-    if (error) {
-      // ⭐️ TESTE DE DEBBUG: Adicione um log aqui se houver erro no Supabase
-      console.error('ERRO SUPABASE:', error); 
-      toast.error('Erro ao carregar lista de categorias.');
-      setCategories([]); 
-    } else if (data) {
-      console.log("Categorias carregadas com sucesso:", data); // Log de sucesso
-      setCategories(data as Category[]);
-    }
-    setLoading(false);
-  };
-
+  // FUNÇÕES SUPABASE REMOVIDAS/IGNORADAS
+  // ⭐️ O useEffect abaixo FOI REMOVIDO para eliminar a busca ⭐️
+  /*
   useEffect(() => {
-    fetchCategories();
+    // Nenhuma busca de dados aqui. Apenas renderizar a UI.
   }, []);
+  */
 
-  // 2. FUNÇÃO PARA ADICIONAR CATEGORIA NO SUPABASE
-  const handleAddCategory = async (e: React.FormEvent) => {
+  // Handlers vazios para não quebrar a UI
+  const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
-    const name = newCategoryName.trim();
-
-    if (!name) {
-      toast.error("O nome da categoria não pode ser vazio.");
-      return;
-    }
-    
-    const slug = slugify(name);
-    if (categories.some(c => c.slug === slug)) {
-        toast.error(`A categoria "${name}" (slug: ${slug}) já existe.`);
-        return;
-    }
-
-    setIsSubmitting(true);
-    
-    const { error } = await supabase
-      .from('categorias')
-      .insert({ name: name, slug: slug });
-
-    if (error) {
-      console.error('Erro ao adicionar categoria:', error);
-      toast.error(`Erro ao adicionar: ${error.message}`);
-    } else {
-      toast.success(`Categoria "${name}" adicionada com sucesso!`);
-      setNewCategoryName("");
-      fetchCategories(); 
-    }
-    
-    setIsSubmitting(false);
+    console.log("Simulação de Adição:", newCategoryName);
+    toast.info("Simulação: Adição desativada para debug.");
   };
 
-  // 3. FUNÇÃO PARA DELETAR CATEGORIA NO SUPABASE
-  const handleDeleteCategory = async (id: string, name: string) => {
-    if (!window.confirm(`Tem certeza que deseja excluir a categoria: "${name}"?`)) {
-      return;
-    }
-
-    setLoading(true);
-    
-    const { error } = await supabase
-      .from('categorias')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Erro ao excluir categoria:', error);
-      toast.error(`Erro ao excluir: ${error.message}`);
-    } else {
-      toast.success(`Categoria "${name}" excluída com sucesso!`);
-      setCategories(prev => prev.filter(c => c.id !== id));
-    }
-    
-    setLoading(false);
+  const handleDeleteCategory = (id: string, name: string) => {
+    console.log(`Simulação de Exclusão: ${name}`);
+    toast.info("Simulação: Exclusão desativada para debug.");
   };
-
 
   return (
     <RequireAdmin>
       <div className="container mx-auto p-4 space-y-8">
-        <h1 className="text-3xl font-bold">Gerenciar Categorias</h1>
-
+        <h1 className="text-3xl font-bold">Gerenciar Categorias (DEBUG MODE)</h1>
+        
         {/* --- Formulário de Adição --- */}
         <Card className="p-6 space-y-6">
             <h3 className="text-xl font-semibold mb-4">Adicionar Nova Categoria</h3>
@@ -128,20 +62,11 @@ const AdminCategoriesPage: React.FC = () => {
                     className="flex-1"
                     required
                 />
-                <Button 
-                    type="submit" 
-                    variant="hero" 
-                    disabled={isSubmitting || loading}
-                >
-                    {isSubmitting ? (
-                        <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Adicionando...
-                        </>
-                    ) : 'Adicionar'}
+                <Button type="submit" variant="hero" disabled={isSubmitting || loading}>
+                    Adicionar (DEBUG)
                 </Button>
             </form>
-            {/* Pré-visualização do Slug */}
+            {/* Pré-visualização do Slug (Ainda requer slugify) */}
             {newCategoryName.trim() && (
                 <p className="text-sm text-muted-foreground mt-2">
                     Slug Sugerido: **{slugify(newCategoryName)}**
@@ -151,22 +76,8 @@ const AdminCategoriesPage: React.FC = () => {
 
         {/* --- Lista de Categorias --- */}
         <Card className="p-6">
-            <h3 className="text-xl font-semibold mb-4">Lista de Categorias</h3>
+            <h3 className="text-xl font-semibold mb-4">Lista de Categorias (MOCK)</h3>
             
-            {/* Indicador de Carregamento */}
-            {loading && categories.length === 0 && (
-                <div className="flex justify-center items-center py-4 text-muted-foreground">
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Carregando categorias...
-                </div>
-            )}
-
-            {/* Mensagem de Vazio */}
-            {!loading && categories.length === 0 && (
-                <p className="text-center text-muted-foreground">Nenhuma categoria encontrada. Adicione uma acima!</p>
-            )}
-
-            {/* Renderização da Lista */}
             <div className="space-y-3">
                 {categories.map((category) => (
                     <div 
@@ -180,7 +91,6 @@ const AdminCategoriesPage: React.FC = () => {
                             variant="destructive"
                             size="icon"
                             onClick={() => handleDeleteCategory(category.id, category.name)}
-                            disabled={loading}
                         >
                             <Trash2 className="h-4 w-4" />
                         </Button>
