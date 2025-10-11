@@ -12,18 +12,20 @@ export default {
         "2xl": "1400px",
       },
     },
-    extend: {
-      colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-          glow: "hsl(var(--primary-glow))",
-        },
+  extend: {
+    colors: {
+      background: "#000000", // Preto principal
+      foreground: "#ffffff", // Texto principal branco
+      muted: "#1A1A1A", // Cinza escuro para áreas secundárias
+      "muted-foreground": "#B3B3B3", // Texto secundário
+      primary: "#E7D1B0", // Dourado suave
+      "primary-foreground": "#000000", // Texto sobre o dourado
+      secondary: "#F6EBD7", // Dourado mais claro
+      accent: "#F6EBD7", // Detalhes sutis
+      border: "#2A2A2A", // Linhas e bordas discretas
+      card: "#111111", // Fundo de cartões/painéis
+    },
+  },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
