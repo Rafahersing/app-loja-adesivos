@@ -9,30 +9,39 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Upload, Trash2, Edit } from "lucide-react";
-// ⭐️ CORREÇÃO DO ERRO: Re-importar o MOCK_PRODUCTS ⭐️
+// Importações de dados e utilitários
 import { MOCK_PRODUCTS } from "@/lib/mockData"; 
-// ⭐️ CORREÇÃO DAS CATEGORIAS: Importar o Supabase ⭐️
 import { supabase } from '@/lib/utils';
 import { toast } from "sonner";
 
-// Interface para a categoria
+// Interface para a categoria (mantida)
 interface Category {
   id: string;
   name: string;
   slug: string;
 }
 
+// ⭐️ NOVO: Interface para o produto (baseado no MOCK_PRODUCTS) ⭐️
+interface Product {
+    id: number; // Supondo que o mock usa número
+    title: string;
+    imageUrl: string;
+    category: string;
+    price: number;
+    description: string;
+    // Adicione outros campos se necessário
+}
+
+
 const Products = () => {
-  // Inicialização que requer a importação de MOCK_PRODUCTS (resolve o erro ReferenceError)
-  const [products] = useState(MOCK_PRODUCTS); 
-  // Estados para as categorias do Supabase
+  // ⭐️ ALTERADO: Usando 'setProducts' para permitir exclusão local (Mock) ⭐️
+  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS); 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
 
-  // Função para buscar categorias no Supabase
+  // Função para buscar categorias no Supabase (mantida)
   const fetchCategories = async () => {
     setLoadingCategories(true);
-    // Busca na tabela 'categorias'
     const { data, error } = await supabase
       .from('categorias')
       .select('id, name, slug')
@@ -60,6 +69,28 @@ const Products = () => {
   const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     // TODO: Implementar upload em massa via CSV/Excel
     toast.info("Funcionalidade de upload em massa será implementada");
+  };
+
+  // ⭐️ NOVO: Função para Excluir Produto (Lógica Mock) ⭐️
+  const handleDeleteProduct = (productId: number, productName: string) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o produto: "${productName}"?`)) {
+        return;
+    }
+
+    // Lógica para remover do array local (Mock)
+    const updatedProducts = products.filter(p => p.id !== productId);
+    setProducts(updatedProducts);
+    
+    toast.success(`Produto "${productName}" excluído com sucesso (localmente).`);
+
+    // TODO: Adicionar lógica real de DELETE do Supabase aqui no futuro
+  };
+
+  // ⭐️ NOVO: Função para Editar Produto (Placeholder) ⭐️
+  const handleEditProduct = (product: Product) => {
+    // TODO: Abrir modal ou pré-preencher o formulário 'Add Product'
+    toast.info(`Iniciando edição do produto: "${product.title}"`);
+    console.log('Editar produto:', product);
   };
 
   return (
@@ -96,7 +127,6 @@ const Products = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="category">Categoria</Label>
-                  {/* Usa categorias reais do estado 'categories' */}
                   <Select required disabled={loadingCategories}> 
                     <SelectTrigger>
                       <SelectValue placeholder={loadingCategories ? "Carregando..." : "Selecione uma categoria"} />
@@ -207,11 +237,20 @@ const Products = () => {
                       {product.category} • R$ {product.price.toFixed(2)}
                     </p>
                   </div>
+                  {/* ⭐️ Conexão dos botões com os handlers ⭐️ */}
                   <div className="flex gap-2">
-                    <Button variant="outline" size="icon">
+                    <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={() => handleEditProduct(product)} // Chama a função de edição
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="icon">
+                    <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={() => handleDeleteProduct(product.id, product.title)} // Chama a função de exclusão
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
