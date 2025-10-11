@@ -20,40 +20,32 @@ interface Category {
   slug: string;
 }
 
-// src/pages/admin/Products.tsx
-
-// Interface para o produto (Ajustada para corresponder ao DB)
+// ⭐️ AJUSTE: Mudar de 'title' para 'nome' e de 'description' para 'descricao' (para corresponder ao Supabase)
 interface Product {
     id: string; 
-    // MUDAR 'title' para 'nome'
-    nome: string; 
-    image_url: string; 
+    nome: string; // Coluna 'nome' no DB
+    image_url: string; // Coluna 'imagem_url' no DB (mantemos a chave na interface)
     category_slug: string; 
-    price: number;
-    // MUDAR 'description' para 'descricao' (com c cedilha)
-    descricao: string; 
+    price: number; // Coluna 'preço' no DB
+    descricao: string; // Coluna 'descricao' no DB
 }
 
-// Interface para o estado do formulário
+// ⭐️ AJUSTE: Mudar de 'title' para 'nome' e de 'description' para 'descricao'
 interface FormData {
-    // MUDAR 'title' para 'nome'
-    nome: string; 
+    nome: string;
     category_slug: string; 
     price: string;
     image_url: string; 
-    // MUDAR 'description' para 'descricao' (com c cedilha)
-    descricao: string; 
+    descricao: string;
 }
 
-// Estado inicial do formulário
+// ⭐️ AJUSTE: Mudar de 'title' para 'nome' e de 'description' para 'descricao'
 const initialFormData: FormData = {
-    // MUDAR 'title' para 'nome'
-    nome: '', 
+    nome: '',
     category_slug: '',
     price: '',
     image_url: '',
-    // MUDAR 'description' para 'descricao' (com c cedilha)
-    descricao: '', 
+    descricao: '',
 };
 
 const Products = () => {
@@ -87,51 +79,53 @@ const Products = () => {
     setLoadingCategories(false);
   };
     
- // src/pages/admin/Products.tsx
-
-// 2. Buscar Produtos Reais
-const fetchProducts = async () => {
-  // ... (código anterior)
+  // 2. Buscar Produtos Reais
+  const fetchProducts = async () => {
+    setLoadingProducts(true);
     
-  // 1. Buscamos produtos e a ID da categoria na tabela de junção
-  const { data, error } = await supabase
-      .from('produtos')
-      .select(`
-          id,
-          // MUDAR title, description, e price para nome, descricao, preço
-          nome,
-          preço, 
-          imagem_url, 
-          descricao,
-          produtos_categorias!inner(category_id)
-      `)
-      .order('id', { ascending: false });
+    // ⭐️ AJUSTE: Usar os nomes de colunas do Supabase e simplificar o SELECT (evita erro 400)
+    const { data, error } = await supabase
+        .from('produtos')
+        .select(`
+            id,
+            nome, // Nome da coluna no DB
+            preço, // Nome da coluna no DB
+            imagem_url, // Nome da coluna no DB
+            descricao, // Nome da coluna no DB
+            produtos_categorias!inner(category_id)
+        `)
+        .order('id', { ascending: false });
 
-  // ... (código de erro)
-
-  } else if (data) {
-      // ... (código de categoriaIdToSlug)
-      
-      const mappedProducts = data.map((p: any) => {
-          const categoryId = p.produtos_categorias[0]?.category_id;
-          
-          return {
-              id: p.id,
-              // Mapear de p.nome para nome
-              nome: p.nome, 
-              // Mapear de p.preço para price
-              price: p.preço, 
-              // Mapear de p.imagem_url para image_url
-              image_url: p.imagem_url, 
-              // Mapear de p.descricao para descricao
-              descricao: p.descricao,
-              category_slug: categoryIdToSlug[categoryId] || 'sem-categoria'
-          };
-      });
-      setProducts(mappedProducts as Product[]);
+    if (error) {
+        console.error('Erro ao carregar produtos:', error);
+        // Exibe erro do Supabase se Policies estiverem incorretas
+        toast.error('Erro ao carregar lista de produtos. Verifique as Policies de RLS (SELECT) no Supabase.'); 
+    } else if (data) {
+        // Mapeia a ID da Categoria para o SLUG da Categoria
+        const categoryIdToSlug: { [key: string]: string } = categories.reduce((map, cat) => {
+            map[cat.id] = cat.slug;
+            return map;
+        }, {});
+        
+        const mappedProducts = data.map((p: any) => {
+            // Pega o ID da categoria da primeira relação
+            const categoryId = p.produtos_categorias[0]?.category_id;
+            
+            return {
+                id: p.id,
+                // Mapeia as chaves do DB para a interface Product
+                nome: p.nome,
+                price: p.preço,
+                image_url: p.imagem_url,
+                descricao: p.descricao,
+                // Converte o ID para o SLUG
+                category_slug: categoryIdToSlug[categoryId] || 'sem-categoria'
+            };
+        });
+        setProducts(mappedProducts as Product[]);
+    }
+    setLoadingProducts(false);
   }
-  setLoadingProducts(false);
-}
 
   // Use um useEffect para buscar categorias primeiro e, em seguida, produtos
   useEffect(() => {
@@ -143,40 +137,16 @@ const fetchProducts = async () => {
       if(categories.length > 0) {
           fetchProducts();
       }
-  // Adicionamos categories.length como dependência para garantir que fetchProducts rode após categories ser populado
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories.length]);
 
   // --- Handlers de Formulário ---
-
-  // src/pages/admin/Products.tsx
-
-const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-  // Ajusta a lógica para mapear os IDs do Input para as chaves do FormData
-  const { id, value } = e.target;
   
-  // Mapeia o ID do input (que ainda é 'title' e 'description') para o nome da coluna no FormData (nome, descricao)
-  const keyMap: { [key: string]: keyof FormData } = {
-      'title': 'nome',
-      'description': 'descricao',
-      'price': 'price',
-      'image_url': 'image_url',
-      'category_slug': 'category_slug'
-  };
-  
-  const key = keyMap[id];
-  
-  if (key) {
-    setFormData(prev => ({ ...prev, [key]: value }));
-  } else {
-    // Para 'price' e 'image_url' que não mudaram
+  // ⭐️ AJUSTE: Função para tratar a mudança de input mapeando os IDs do JSX para as chaves do FormData
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id as keyof FormData]: value }));
-  }
-};
-// NOTA: Para simplificar, você pode alterar o ID dos seus Inputs no JSX:
-// <Input id="title" para <Input id="nome"
-// <Textarea id="description" para <Textarea id="descricao"
-// ... e assim por diante.
+  };
 
   const handleSelectChange = (value: string) => {
     setFormData(prev => ({ ...prev, category_slug: value }));
@@ -188,51 +158,85 @@ const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaE
 
   // --- Funções CRUD ---
 
- // src/pages/admin/Products.tsx
+  const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    // ⭐️ AJUSTE: Usar nome e descricao (chaves do FormData)
+    const { nome, category_slug, price, image_url, descricao } = formData;
 
-const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  
-  // MUDAR title e description para nome e descricao
-  const { nome, category_slug, price, image_url, descricao } = formData;
+    const priceValue = parseFloat(price);
+    if (isNaN(priceValue)) {
+      toast.error("O preço deve ser um número válido.");
+      return;
+    }
 
-  // ... (código de validação de preço e categoria)
+    const category = categories.find(c => c.slug === category_slug);
+    if (!category) {
+        toast.error("Categoria inválida ou não selecionada.");
+        return;
+    }
 
-  // Campos da tabela 'produtos'
-  // Usar nome, descricao e preço (com acento), e image_url
-  const productData = { nome, imagem_url: image_url, descricao, preço: priceValue };
-  let error = null;
+    // ⭐️ AJUSTE: Usar nomes de colunas do Supabase (nome, descricao, preço, imagem_url)
+    const productData = { nome, imagem_url: image_url, descricao, preço: priceValue };
+    let error = null;
 
-  if (editingProduct) {
-      // Lógica de EDIÇÃO (UPDATE)
-      ({ error } = await supabase
-          .from('produtos')
-          .update(productData)
-          .eq('id', editingProduct.id));
-          
-      // ... (código de atualização de categoria e sucesso)
+    if (editingProduct) {
+        // Lógica de EDIÇÃO (UPDATE)
+        ({ error } = await supabase
+            .from('produtos')
+            .update(productData)
+            .eq('id', editingProduct.id));
+            
+        if (!error) {
+            // Atualizar relacionamento de categoria
+            const { error: catError } = await supabase
+                .from('produtos_categorias')
+                .upsert(
+                    { product_id: editingProduct.id, category_id: category.id },
+                    { onConflict: 'product_id', ignoreDuplicates: false }
+                );
+            
+            if (catError) console.error("Erro ao atualizar relação de categoria:", catError);
 
-      if (!error) {
-          // ...
-          toast.success(`Produto '${nome}' atualizado com sucesso!`);
-      }
-  } else {
-      // Lógica de ADIÇÃO (INSERT)
-      const { data: insertedProduct, error: insertError } = await supabase
-          .from('produtos')
-          .insert(productData)
-          .select('id'); 
-          
-      error = insertError;
+            // ⭐️ AJUSTE: Usar 'nome' na mensagem
+            toast.success(`Produto '${nome}' atualizado com sucesso!`);
+        }
+    } else {
+        // Lógica de ADIÇÃO (INSERT)
+        const { data: insertedProduct, error: insertError } = await supabase
+            .from('produtos')
+            .insert(productData)
+            .select('id'); 
+            
+        error = insertError;
 
-      if (insertedProduct && insertedProduct.length > 0 && !insertError) {
-           // ...
-           toast.success(`Novo produto '${nome}' adicionado com sucesso!`);
-      }
-  }
-  
-  // ...
-};
+        if (insertedProduct && insertedProduct.length > 0 && !insertError) {
+             // Inserir relacionamento de categoria
+             const { error: catError } = await supabase
+                .from('produtos_categorias')
+                .insert({ 
+                    product_id: insertedProduct[0].id, 
+                    category_id: category.id 
+                });
+             
+             if (catError) console.error("Erro ao inserir relação de categoria:", catError);
+            
+             // ⭐️ AJUSTE: Usar 'nome' na mensagem
+             toast.success(`Novo produto '${nome}' adicionado com sucesso!`);
+        }
+    }
+    
+    if (error) {
+        console.error('Erro de Supabase (Salvar Produto):', error);
+        toast.error(`Falha ao salvar produto: ${error.message}`);
+    } else {
+        setEditingProduct(null);
+        setFormData(initialFormData);
+        setActiveTab("list");
+        fetchProducts(); // Recarrega os dados
+    }
+  };
+
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
     if (!window.confirm(`Tem certeza que deseja excluir o produto: "${productName}"?`)) {
@@ -258,49 +262,94 @@ const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     
   // --- Importação em Massa (Lógica Real) ---
     
-  // src/pages/admin/Products.tsx
+  const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
+      // Mapeamento de Slug para ID
+      const categoryMap: { [key: string]: string } = categories.reduce((map, cat) => {
+          map[cat.slug] = cat.id;
+          return map;
+      }, {});
+      
+      const finalProducts = [];
+      const finalProductCategories = [];
+      
+      // Mapeia o índice da coluna do cabeçalho
+      const headerMap: { [key: string]: number } = {};
+      
+      // Mapeamento tolerante a diferentes nomes/casos
+      headers.forEach((h, i) => {
+          // Normalize (remove acentos e caracteres, mantém espaços para checagem)
+          const normalized = h.toLowerCase().trim()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9\s]/g, ''); 
+            
+          // ⭐️ CORREÇÃO: Mapeamento de cabeçalho
+          if (normalized.includes('url') || normalized.includes('imagem')) headerMap['url'] = i;
+          else if (normalized.includes('categoria')) headerMap['categoria'] = i;
+          else if (normalized.includes('titulo') || normalized.includes('nome')) headerMap['titulo'] = i;
+          else if (normalized.includes('descricao')) headerMap['descricao'] = i;
+          else if (normalized.includes('preco') || normalized.includes('valor')) headerMap['preco'] = i;
+      });
 
-const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
-    // ... (código de categoryMap)
+      const urlIndex = headerMap['url'];
+      const categoryIndex = headerMap['categoria'];
+      const titleIndex = headerMap['titulo'];
+      const descIndex = headerMap['descricao'];
+      const priceIndex = headerMap['preco']; 
+      
+      // Verificação Mínima
+      if (titleIndex === undefined) {
+           throw new Error("Colunas obrigatórias (Título) não encontradas. Verifique se o cabeçalho contém 'Título' ou 'Nome'.");
+      }
+      
+      // Aviso se faltar algo crítico (além do Título)
+      if (urlIndex === undefined || categoryIndex === undefined || priceIndex === undefined) {
+           toast.warning("Atenção: Nem todas as colunas obrigatórias (URL, Categoria, Preço) foram encontradas. A importação pode resultar em produtos incompletos.");
+      }
+      
+      for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const rowNumber = i + 2; 
+          
+          const title = row[titleIndex]?.trim();
+          if (!title) continue; 
 
-    const finalProducts = [];
-    // ...
+          const tempProductId = crypto.randomUUID(); 
 
-    // ... (código de headerMap)
-    
-    // ... (código de índices)
-    
-    // ... (código de verificação mínima)
+          // Prepara o preço
+          const priceValue = (priceIndex !== undefined && row[priceIndex]) 
+                             ? row[priceIndex].toString().replace(',', '.').trim() 
+                             : '0';
 
-    for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const rowNumber = i + 2; 
-        
-        const title = row[titleIndex]?.trim();
-        if (!title) continue; 
+          const product = {
+              id: tempProductId, 
+              // ⭐️ AJUSTE: Usar nomes de colunas do Supabase
+              imagem_url: (urlIndex !== undefined && row[urlIndex]) ? row[urlIndex].trim() : null,
+              nome: title,
+              descricao: (descIndex !== undefined && row[descIndex]) ? row[descIndex].trim() : 'Sem descrição.',
+              preço: parseFloat(priceValue) || 0, 
+          };
 
-        const tempProductId = crypto.randomUUID(); 
+          finalProducts.push(product);
 
-        const priceValue = (priceIndex !== undefined && row[priceIndex]) 
-                           ? row[priceIndex].toString().replace(',', '.').trim() 
-                           : '0';
-
-        const product = {
-            id: tempProductId, 
-            // Usar o nome das colunas do Supabase aqui!
-            imagem_url: (urlIndex !== undefined && row[urlIndex]) ? row[urlIndex].trim() : null, // imagem_url
-            nome: title, // nome
-            descricao: (descIndex !== undefined && row[descIndex]) ? row[descIndex].trim() : 'Sem descrição.', // descricao
-            preço: parseFloat(priceValue) || 0, // preço (com acento)
-        };
-
-        finalProducts.push(product);
-
-        // ... (código de categoria)
-    }
-    
-    return { finalProducts, finalProductCategories };
-}
+          // Lógica de categoria
+          if (categoryIndex !== undefined && row[categoryIndex]) {
+             const categoryName = row[categoryIndex]?.trim();
+             const categorySlug = slugify(categoryName);
+             const categoryId = categoryMap[categorySlug];
+          
+             if (categoryId) {
+                 finalProductCategories.push({
+                     product_id: tempProductId,
+                     category_id: categoryId,
+                 });
+             } else {
+                 toast.warning(`Linha ${rowNumber}: Categoria "${categoryName}" não encontrada. Produto será importado, mas sem categoria.`);
+             }
+          }
+      }
+      
+      return { finalProducts, finalProductCategories };
+  }
     
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -341,7 +390,8 @@ const processAndPrepareProducts = async (rows: string[][], headers: string[]) =>
         // 1. Inserir Produtos em Lote
         const { error: productsError } = await supabase
             .from('produtos')
-            .insert(finalProducts);
+            // finalProducts já está formatado com nomes de coluna do Supabase (nome, descricao, preço, imagem_url)
+            .insert(finalProducts); 
 
         if (productsError) throw new Error(`Falha ao inserir produtos: ${productsError.message}`);
 
@@ -378,11 +428,12 @@ const processAndPrepareProducts = async (rows: string[][], headers: string[]) =>
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setFormData({
-        title: product.title,
+        // ⭐️ AJUSTE: Mapear as chaves de Product (nome, descricao) para FormData
+        nome: product.nome, 
         category_slug: product.category_slug,
         price: product.price.toFixed(2),
         image_url: product.image_url,
-        description: product.description,
+        descricao: product.descricao, 
     });
     setActiveTab("add");
   };
@@ -401,8 +452,9 @@ const processAndPrepareProducts = async (rows: string[][], headers: string[]) =>
     const lowerCaseSearch = searchTerm.toLowerCase().trim();
     
     return products.filter(product => 
-      product.title.toLowerCase().includes(lowerCaseSearch) ||
-      product.description.toLowerCase().includes(lowerCaseSearch) ||
+      // ⭐️ AJUSTE: Usar 'nome' e 'descricao' na pesquisa
+      product.nome.toLowerCase().includes(lowerCaseSearch) ||
+      product.descricao.toLowerCase().includes(lowerCaseSearch) ||
       product.category_slug.toLowerCase().includes(lowerCaseSearch)
     );
   }, [products, searchTerm]);
@@ -431,17 +483,20 @@ const processAndPrepareProducts = async (rows: string[][], headers: string[]) =>
         <TabsContent value="add">
           <Card className="p-6">
             <h3 className="text-xl font-bold mb-6">
-              {editingProduct ? `Editando: ${editingProduct.title}` : 'Adicionar Produto Individual'}
+              {/* ⭐️ AJUSTE: Usar 'nome' na exibição */}
+              {editingProduct ? `Editando: ${editingProduct.nome}` : 'Adicionar Produto Individual'}
             </h3>
             <form onSubmit={handleSaveProduct} className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
                 
                 {/* Título */}
                 <div className="space-y-2">
-                  <Label htmlFor="title">Título</Label>
+                  {/* ⭐️ AJUSTE: Usar id="nome" */}
+                  <Label htmlFor="nome">Título</Label>
                   <Input
-                    id="title"
-                    value={formData.title} 
+                    id="nome"
+                    // ⭐️ AJUSTE: Usar formData.nome
+                    value={formData.nome} 
                     onChange={handleInputChange} 
                     placeholder="Nome do produto"
                     required
@@ -502,10 +557,12 @@ const processAndPrepareProducts = async (rows: string[][], headers: string[]) =>
 
               {/* Descrição */}
               <div className="space-y-2">
-                <Label htmlFor="description">Descrição</Label>
+                {/* ⭐️ AJUSTE: Usar id="descricao" */}
+                <Label htmlFor="descricao">Descrição</Label>
                 <Textarea
-                  id="description"
-                  value={formData.description}
+                  id="descricao"
+                  // ⭐️ AJUSTE: Usar formData.descricao
+                  value={formData.descricao}
                   onChange={handleInputChange}
                   placeholder="Descreva o produto..."
                   rows={4}
@@ -616,11 +673,13 @@ const processAndPrepareProducts = async (rows: string[][], headers: string[]) =>
                 >
                   <img
                     src={product.image_url} 
-                    alt={product.title}
+                    // ⭐️ AJUSTE: Usar 'nome' para o alt da imagem
+                    alt={product.nome}
                     className="h-16 w-16 rounded-lg object-cover"
                   />
                   <div className="flex-1">
-                    <h4 className="font-semibold">{product.title}</h4>
+                    {/* ⭐️ AJUSTE: Usar 'nome' para o título */}
+                    <h4 className="font-semibold">{product.nome}</h4>
                     <p className="text-sm text-muted-foreground">
                       {getCategoryName(product.category_slug)} • R$ {product.price.toFixed(2)}
                     </p>
@@ -637,7 +696,8 @@ const processAndPrepareProducts = async (rows: string[][], headers: string[]) =>
                     <Button 
                         variant="outline" 
                         size="icon"
-                        onClick={() => handleDeleteProduct(product.id, product.title)}
+                        // ⭐️ AJUSTE: Usar 'nome' na exclusão
+                        onClick={() => handleDeleteProduct(product.id, product.nome)}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
