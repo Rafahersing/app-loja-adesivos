@@ -12,6 +12,16 @@ const RequireAdmin = () => {
     async function checkAdmin() {
       const { data: { user }, error } = await supabase.auth.getUser();
 
+      console.log("Usuário retornado:", user); // OBRIGATÓRIO
+
+      if (user) {
+        console.log("Metadata do App:", user.app_metadata); // OBRIGATÓRIO
+        const userIsAdmin = user.app_metadata.is_admin === true;
+        console.log("Resultado da verificação isAdmin:", userIsAdmin); // OBRIGATÓRIO
+        
+        setIsAdmin(userIsAdmin);
+      }
+      
       // Checagem primária: Usuário não logado
       if (!user || error) {
         setIsLoading(false);
