@@ -7,14 +7,14 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">
-        {/* wrapper com classe explicita para garantir o max-width via CSS */}
-        <div className="app-container">
-          {children}
-        </div>
+
+      {/* Área principal com limite de largura */}
+      <main className="flex-1 w-full max-w-[1200px] mx-auto px-4">
+        {children}
       </main>
+
       <Footer />
     </div>
   );
