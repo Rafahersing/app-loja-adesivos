@@ -1,8 +1,9 @@
-// src/components/layout/RequireAdmin.tsx (CORRIGIDO)
+// src/components/layout/RequireAdmin.tsx (CÓDIGO FINAL DE PROTEÇÃO)
 
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { supabase } from "../../lib/utils"; // Confirme o caminho
+// ⚠️ CONFIRME QUE ESTE CAMINHO ESTÁ CORRETO (../../lib/utils ou @/lib/utils)
+import { supabase } from "../../lib/utils"; 
 
 const RequireAdmin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -10,7 +11,7 @@ const RequireAdmin = () => {
 
   useEffect(() => {
     async function checkAdmin() {
-      // 1. Obter o usuário
+      // 1. Obter o usuário logado
       const { data: { user } } = await supabase.auth.getUser();
 
       let userIsAdmin = false;
@@ -22,11 +23,11 @@ const RequireAdmin = () => {
       }
       
       // 3. Checagem Principal: O usuário está logado E ele é admin?
-      // Se user for null, userIsAdmin será false, e o acesso será negado.
+      // Se user for null (não logado), a checagem é false, o que nega o acesso.
       setIsAdmin(!!user && userIsAdmin);
 
-      // 4. ESSENCIAL: Encerrar o estado de carregamento, independentemente do resultado.
-      // ISSO IMPEDE O BLOQUEIO DE TELA BRANCA.
+      // 4. ESSENCIAL: Encerrar o estado de carregamento.
+      // O componente NUNCA deve ficar preso aqui.
       setIsLoading(false);
     }
     
@@ -35,7 +36,7 @@ const RequireAdmin = () => {
 
   // 1. Mostrar Carregando
   if (isLoading) {
-    // É importante ter um feedback visual
+    // Retorna um indicador de carregamento (em vez de null/nada)
     return (
       <div className="min-h-screen flex items-center justify-center">
         Verificando Acesso Administrativo...
@@ -48,7 +49,7 @@ const RequireAdmin = () => {
     return <Navigate to="/" replace />;
   }
 
-  // 3. Acesso Permitido: Renderiza o componente filho
+  // 3. Acesso Permitido: Renderiza o componente filho (AdminLayout)
   return <Outlet />;
 };
 
