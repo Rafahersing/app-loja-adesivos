@@ -88,12 +88,12 @@ const AdminLayout = () => {
             <SheetContent side="left" className="w-64 p-6">
               <div className="mb-8">
                 <Link to="/" className="flex items-center space-x-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-primary">
-                    <span className="text-xl font-bold text-primary-foreground">
-                      P
-                    </span>
-                  </div>
-                  <span className="text-xl font-bold">PixelStore</span>
+                  <img
+  src="https://pub-5c45cfd873454d96a8bc860a71c4c505.r2.dev/Logo%20dourado%20mais%20claro.png"
+  alt="Logo"
+  className="h-10 w-auto"
+/>
+
                 </Link>
                 <p className="text-sm text-muted-foreground mt-2">
                   Painel Administrativo
