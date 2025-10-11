@@ -99,3 +99,22 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* --------- Container fix para forcar largura max de 1200px --------- */
+/* Aplicável a todo o conteúdo principal do app. */
+.app-container {
+  max-width: 1200px;      /* largura máxima desejada */
+  width: 100%;            /* permite encolher em telas menores */
+  margin-left: auto;
+  margin-right: auto;     /* centraliza */
+  padding-left: 1rem;     /* espaçamento lateral */
+  padding-right: 1rem;
+  box-sizing: border-box;
+}
+
+/* Se quiser controlar também se algum filho estiver definindo 100vw,
+   limita visualmente o conteúdo (útil para componentes com width:100vw) */
+.app-container > * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
