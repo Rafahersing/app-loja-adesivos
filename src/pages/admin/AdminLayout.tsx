@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react"; // Adicionado useEffect
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { supabase } from "@/lib/utils"; // 🚨 IMPORTANTE: Importar o cliente Supabase
+import { supabase } from "../../lib/utils"; // Assumindo que AdminLayout está em src/pages/admin/
 
 const AdminLayout = () => {
   const location = useLocation();
