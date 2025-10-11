@@ -1,7 +1,7 @@
-// src/pages/admin/categories.tsx (SEM REQUIREADMIN)
+// src/pages/admin/categories.tsx
 
 import React from 'react';
-// import RequireAdmin from '@/components/layout/RequireAdmin'; // REMOVIDO!
+import RequireAdmin from '@/components/layout/RequireAdmin'; 
 import CategoryManager from '@/components/admin/CategoryManager'; 
 
 const AdminCategoriesPage: React.FC = () => {
