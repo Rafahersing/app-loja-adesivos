@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"; // Adicionado useNavigate
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
@@ -7,55 +7,31 @@ import {
   Users,
   LogOut,
   Menu,
+  Tags, // ⭐️ NOVO: Importado ícone para Categorias
 } from "lucide-react";
-import { useState, useEffect } from "react"; // Adicionado useEffect
+import { useState } from "react"; // Removido useEffect
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { supabase } from "../../lib/utils"; // Assumindo que AdminLayout está em src/pages/admin/
+import { supabase } from "../../lib/utils"; // Mantido para o logout
 
 const AdminLayout = () => {
   const location = useLocation();
-  const navigate = useNavigate(); // Hook para redirecionamento
-  const [isLoading, setIsLoading] = useState(true); // Novo estado para controle de loading
-  const [isAdmin, setIsAdmin] = useState(false); // Novo estado para o status de admin
+  const navigate = useNavigate();
+  // ⚠️ REMOVIDO: isLoading e isAdmin. O RequireAdmin faz a segurança.
   const [isOpen, setIsOpen] = useState(false);
-
-  // -------------------------------------------------------------------
-  // 🚨 LÓGICA DE VERIFICAÇÃO DE ADMINISTRAÇÃO (CORREÇÃO AQUI)
-  // -------------------------------------------------------------------
-  useEffect(() => {
-    async function checkAdmin() {
-      const { data: { user }, error } = await supabase.auth.getUser();
-
-      if (error || !user) {
-        // Usuário não logado ou erro: redireciona para a autenticação
-        navigate('/auth'); 
-        return;
-      }
-
-      // Verifica a flag 'is_admin' nos metadados do aplicativo
-      const userIsAdmin = user.app_metadata.is_admin === true;
-      setIsAdmin(userIsAdmin);
-      setIsLoading(false);
-
-      if (!userIsAdmin) {
-        // Usuário logado, mas NÃO é administrador: redireciona para a Home
-        navigate('/');
-      }
-    }
-    checkAdmin();
-  }, [navigate]); // Roda apenas uma vez ao carregar
 
   // -------------------------------------------------------------------
   // LOGOUT
   // -------------------------------------------------------------------
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/auth'); // Redireciona para a tela de login
+    navigate("/auth"); // Redireciona para a tela de login
   };
 
   const navigation = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { name: "Produtos", href: "/admin/products", icon: Package },
+    // ⭐️ ADICIONADO: Botão de Categorias ⭐️
+    { name: "Categorias", href: "/admin/categories", icon: Tags },
     { name: "Pedidos", href: "/admin/orders", icon: ShoppingBag },
     { name: "Usuários", href: "/admin/users", icon: Users },
   ];
@@ -84,7 +60,7 @@ const AdminLayout = () => {
       <Button
         variant="ghost"
         className="w-full justify-start text-red-500 hover:text-red-600"
-        onClick={handleLogout} // Adicionado o handleLogout aqui também
+        onClick={handleLogout}
       >
         <LogOut className="h-5 w-5 mr-3" />
         Sair
@@ -95,16 +71,7 @@ const AdminLayout = () => {
   // -------------------------------------------------------------------
   // Renderização
   // -------------------------------------------------------------------
-  // Se estiver carregando, mostra um loader simples ou tela em branco
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Verificando Permissões...</div>;
-  }
-
-  // Se não for admin, o useEffect já redirecionou. Não deve chegar aqui, 
-  // mas é uma checagem de segurança extra.
-  if (!isAdmin) {
-    return null; 
-  }
+  // ⚠️ REMOVIDO: As checagens if (isLoading) e if (!isAdmin)
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -148,11 +115,9 @@ const AdminLayout = () => {
 
           <div className="ml-auto flex items-center gap-2">
             <Button variant="outline" asChild>
-              <Link to="/">
-                Ver Loja
-              </Link>
+              <Link to="/">Ver Loja</Link>
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout}> 
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
               <LogOut className="h-5 w-5" />
             </Button>
           </div>
