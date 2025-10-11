@@ -28,3 +28,23 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 // Cria e exporta o cliente Supabase
 export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as string);
+
+// src/lib/utils.ts (ou onde suas funções utilitárias estão)
+
+// ... (seus imports e outras funções, ex: supabase) ...
+
+/**
+ * Converte uma string em um formato URL-friendly (slug).
+ * Ex: "Açaí & Lanches" -> "acai-e-lanches"
+ */
+export const slugify = (text: string): string => {
+  return text
+    .toString()                     // Converte para string
+    .toLowerCase()                  // Converte para minúsculas
+    .normalize('NFD')               // Normaliza caracteres (ex: 'á' -> 'a')
+    .replace(/[\u0300-\u036f]/g, '')// Remove acentos e diacríticos
+    .trim()                         // Remove espaços no início e fim
+    .replace(/\s+/g, '-')           // Substitui espaços por hífens
+    .replace(/[^\w\-]+/g, '')       // Remove caracteres não-palavra (exceto hífens)
+    .replace(/\-\-+/g, '-');        // Substitui múltiplos hífens por um único
+};
