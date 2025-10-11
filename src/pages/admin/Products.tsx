@@ -8,11 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Upload, Trash2, Edit, Loader2 } from "lucide-react"; // Adicionando Loader2
-// ⭐️ IMPORTAÇÃO NOVA PARA XLSX ⭐️
-import * as XLSX from 'xlsx'; 
-// Importações de dados e utilitários
-// ⭐️ ADICIONANDO slugify ⭐️
+import { Plus, Upload, Trash2, Edit, Loader2 } from "lucide-react"; 
+import * as XLSX from 'xlsx'; // Importação da biblioteca XLSX
+// A MOCK_PRODUCTS foi removida, assumindo que você não a usa mais
 import { supabase, slugify } from '@/lib/utils';
 import { toast } from "sonner";
 
@@ -25,10 +23,10 @@ interface Category {
 
 // Interface para o produto (Ajustada para corresponder ao DB)
 interface Product {
-    id: string; // ID deve ser string/UUID para o Supabase
+    id: string; 
     title: string;
-    image_url: string; // Mudei de imageUrl para image_url (padrão DB)
-    category_slug: string; // Usaremos o slug para exibir
+    image_url: string; 
+    category_slug: string; 
     price: number;
     description: string;
 }
@@ -36,9 +34,9 @@ interface Product {
 // Interface para o estado do formulário
 interface FormData {
     title: string;
-    category_slug: string; // Mudei para category_slug
+    category_slug: string; 
     price: string;
-    image_url: string; // Mudei para image_url
+    image_url: string; 
     description: string;
 }
 
@@ -52,13 +50,13 @@ const initialFormData: FormData = {
 };
 
 const Products = () => {
-  // Ajustando o estado dos produtos para refletir a interface atualizada
   const [products, setProducts] = useState<Product[]>([]); 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
-  const [uploading, setUploading] = useState(false); // Novo estado para o upload em massa
-    
+  const [uploading, setUploading] = useState(false); 
+  const [fileName, setFileName] = useState(""); // Adicionado para exibição
+
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [activeTab, setActiveTab] = useState("list");
@@ -103,9 +101,11 @@ const Products = () => {
 
     if (error) {
         console.error('Erro ao carregar produtos:', error);
-        toast.error('Erro ao carregar lista de produtos.');
+        // Não mostrar toast se o erro for 'permission denied', mas sim se for um erro crítico de conexão
+        if (!error.message.includes('permission denied')) { 
+             toast.error('Erro ao carregar lista de produtos. Verifique as tabelas.');
+        }
     } else if (data) {
-        // Mapeia o resultado para a interface Product
         const mappedProducts = data.map((p: any) => ({
             id: p.id,
             title: p.title,
@@ -133,11 +133,9 @@ const Products = () => {
   };
 
   const handleSelectChange = (value: string) => {
-    // Note que agora estamos salvando o SLUG da categoria
     setFormData(prev => ({ ...prev, category_slug: value }));
   };
 
-  // Encontra o nome da categoria para exibição
   const getCategoryName = (slug: string) => {
     return categories.find(c => c.slug === slug)?.name || 'Categoria Desconhecida';
   };
@@ -161,6 +159,7 @@ const Products = () => {
         return;
     }
 
+    // Campos da tabela 'produtos'
     const productData = { title, image_url, description, price: priceValue };
     let error = null;
 
@@ -173,10 +172,13 @@ const Products = () => {
             
         if (!error) {
             // Atualizar relacionamento de categoria
+            // Usamos upsert para garantir que a relação exista ou seja atualizada
             const { error: catError } = await supabase
                 .from('produtos_categorias')
-                .update({ category_id: category.id })
-                .eq('product_id', editingProduct.id);
+                .upsert(
+                    { product_id: editingProduct.id, category_id: category.id },
+                    { onConflict: 'product_id', ignoreDuplicates: false }
+                );
             
             if (catError) console.error("Erro ao atualizar relação de categoria:", catError);
 
@@ -184,6 +186,7 @@ const Products = () => {
         }
     } else {
         // Lógica de ADIÇÃO (INSERT)
+        // O Supabase deve gerar o UUID se a coluna 'id' não for passada.
         const { data: insertedProduct, error: insertError } = await supabase
             .from('produtos')
             .insert(productData)
@@ -191,7 +194,7 @@ const Products = () => {
             
         error = insertError;
 
-        if (insertedProduct && !insertError) {
+        if (insertedProduct && insertedProduct.length > 0 && !insertError) {
              // Inserir relacionamento de categoria
              const { error: catError } = await supabase
                 .from('produtos_categorias')
@@ -225,7 +228,6 @@ const Products = () => {
     
     setLoadingProducts(true);
 
-    // O RLS deve garantir que a exclusão em 'produtos' cascateie para 'produtos_categorias'
     const { error } = await supabase
         .from('produtos')
         .delete()
@@ -243,7 +245,6 @@ const Products = () => {
     
   // --- Importação em Massa (Lógica Real) ---
     
-  // Função auxiliar para processar e preparar os dados (incluída no componente para facilidade)
   const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
       // Mapeamento de Slug para ID
       const categoryMap: { [key: string]: string } = categories.reduce((map, cat) => {
@@ -256,17 +257,24 @@ const Products = () => {
       
       // Mapeia o índice da coluna do cabeçalho
       const headerMap: { [key: string]: number } = {};
+      
+      // Mapeamento tolerante a diferentes nomes/casos
       headers.forEach((h, i) => {
-          // Normaliza o nome da coluna (ex: "URL da imagem" -> "url")
-          const normalizedHeader = h.toLowerCase().trim().replace(/ da imagem| de arquivo| título/g, '').replace(/preço/g, 'preco');
-          headerMap[normalizedHeader] = i;
+          const normalized = h.toLowerCase().trim()
+            .replace(/[^a-z0-9]/g, ''); // Remove todos os caracteres não alfanuméricos
+            
+          if (normalized.includes('url')) headerMap['url'] = i;
+          else if (normalized.includes('categoria')) headerMap['categoria'] = i;
+          else if (normalized.includes('titulo')) headerMap['titulo'] = i;
+          else if (normalized.includes('descricao')) headerMap['descricao'] = i;
+          else if (normalized.includes('preco')) headerMap['preco'] = i;
       });
 
       const urlIndex = headerMap['url'];
       const categoryIndex = headerMap['categoria'];
-      const titleIndex = headerMap['título'];
-      const descIndex = headerMap['descrição'];
-      const priceIndex = headerMap['preço']; 
+      const titleIndex = headerMap['titulo'];
+      const descIndex = headerMap['descricao'];
+      const priceIndex = headerMap['preco']; 
       
       // Validação básica de cabeçalho
       if (urlIndex === undefined || categoryIndex === undefined || titleIndex === undefined || priceIndex === undefined) {
@@ -291,7 +299,7 @@ const Products = () => {
               title: title,
               description: row[descIndex]?.trim() || 'Sem descrição.',
               price: parseFloat(priceValue) || 0, 
-              created_at: new Date().toISOString(),
+              // Removido created_at para deixar o Supabase cuidar disso (se configurado)
           };
 
           finalProducts.push(product);
@@ -313,18 +321,19 @@ const Products = () => {
       return { finalProducts, finalProductCategories };
   }
     
-  // ⭐️ handleBulkUpload ATUALIZADO COM LÓGICA REAL ⭐️
+  // ⭐️ handleBulkUpload ATUALIZADO COM LÓGICA DE TRATAMENTO DE ERROS ⭐️
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     
     // Limpa o input imediatamente
-    e.target.value = '';
+    if (e.target) e.target.value = '';
 
     if (!file) {
         toast.error("Nenhum arquivo selecionado.");
         return;
     }
     
+    setFileName(file.name);
     setUploading(true);
     
     try {
@@ -370,10 +379,20 @@ const Products = () => {
         fetchProducts(); // Recarrega os produtos
         
     } catch (error) {
-        console.error('Erro na importação:', error);
-        toast.error(`Falha na importação. Verifique o formato do arquivo: ${error.message}`);
+        // ⭐️ CAPTURA DE ERRO APRIMORADA ⭐️
+        console.error('ERRO CRÍTICO NA IMPORTAÇÃO (VERIFIQUE O CONSOLE):', error);
+        
+        // Determina o erro para feedback melhor
+        let errorMessage = "Ocorreu um erro desconhecido durante o processamento do arquivo.";
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        
+        toast.error(`Falha na importação: ${errorMessage}`);
+        
     } finally {
-        setUploading(false);
+        setUploading(false); // Garante que o estado seja desligado
+        setFileName("");
     }
   };
   // -------------------------------------------------------------
@@ -413,7 +432,7 @@ const Products = () => {
 
 
   return (
-    <div className="space-y-8">
+    <div className="container mx-auto p-4 space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Gerenciar Produtos</h1>
@@ -506,154 +525,3 @@ const Products = () => {
 
               {/* Descrição */}
               <div className="space-y-2">
-                <Label htmlFor="description">Descrição</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Descreva o produto..."
-                  rows={4}
-                  required
-                />
-              </div>
-
-              {/* Botões de Ação */}
-              <div className='flex gap-2'>
-                <Button type="submit" variant="hero" size="lg">
-                    {editingProduct ? <Edit className="h-5 w-5 mr-2" /> : <Plus className="h-5 w-5 mr-2" />}
-                    {editingProduct ? 'Salvar Edição' : 'Adicionar Produto'}
-                </Button>
-                
-                {/* Botão de Cancelar Edição */}
-                {editingProduct && (
-                    <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="lg"
-                        onClick={handleCancelEdit}
-                    >
-                        Cancelar Edição
-                    </Button>
-                )}
-              </div>
-            </form>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="bulk">
-          <Card className="p-6">
-            <h3 className="text-xl font-bold mb-6">Upload em Massa</h3>
-            <div className="space-y-6">
-                
-              <div className="rounded-lg border-2 border-dashed p-12 text-center">
-                {uploading ? (
-                    <div className="flex flex-col items-center justify-center">
-                        <Loader2 className="mx-auto h-12 w-12 text-blue-500 mb-4 animate-spin" />
-                        <p className="text-lg font-medium">Processando {fileName}...</p>
-                        <p className="text-sm text-muted-foreground">Isso pode levar alguns segundos dependendo do tamanho do arquivo.</p>
-                    </div>
-                ) : (
-                    <>
-                        <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                        <p className="text-lg font-medium mb-2">
-                            Faça upload de arquivo CSV ou Excel
-                        </p>
-                        <p className="text-sm text-muted-foreground mb-4">
-                            O arquivo deve conter: URL, Categoria, Título, Descrição, Preço
-                        </p>
-                        <Input
-                            type="file"
-                            accept=".csv, .xlsx, .xls"
-                            className="max-w-xs mx-auto"
-                            onChange={handleBulkUpload}
-                        />
-                    </>
-                )}
-              </div>
-
-              <div className="rounded-lg bg-muted/30 p-4">
-                <h4 className="font-semibold mb-2">Formato do Arquivo:</h4>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p>• Coluna 1: **URL da imagem**</p>
-                  <p>• Coluna 2: **Categoria** (use o **SLUG** da categoria, ex: `acai`, `salgados`)</p>
-                  <p>• Coluna 3: **Título**</p>
-                  <p>• Coluna 4: **Descrição**</p>
-                  <p>• Coluna 5: **Preço** (formato: `29.90` ou `29,90`)</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="list">
-          <Card className="p-6">
-            <h3 className="text-xl font-bold mb-6">Produtos Cadastrados ({products.length})</h3>
-            
-            {/* Campo de Pesquisa */}
-            <Input 
-                type="text"
-                placeholder="Pesquisar produtos por título, descrição ou categoria..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="mb-6"
-            />
-            
-            {/* Loading e Vazio */}
-            {loadingProducts && (
-                 <div className="flex justify-center items-center py-8">
-                    <Loader2 className="h-6 w-6 mr-2 animate-spin" />
-                    Carregando produtos...
-                </div>
-            )}
-            {!loadingProducts && products.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">Nenhum produto cadastrado. Adicione um para começar.</p>
-            )}
-            {!loadingProducts && products.length > 0 && filteredProducts.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">Nenhum produto corresponde à sua pesquisa.</p>
-            )}
-
-            <div className="space-y-4">
-              {filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center gap-4 p-4 rounded-lg border"
-                >
-                  <img
-                    src={product.image_url} // Mudado para image_url
-                    alt={product.title}
-                    className="h-16 w-16 rounded-lg object-cover"
-                  />
-                  <div className="flex-1">
-                    <h4 className="font-semibold">{product.title}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {getCategoryName(product.category_slug)} • R$ {product.price.toFixed(2)}
-                    </p>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => handleEditProduct(product)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => handleDeleteProduct(product.id, product.title)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-};
-
-export default Products;
