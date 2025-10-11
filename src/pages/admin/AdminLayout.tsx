@@ -63,9 +63,9 @@ const AdminLayout = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
+      {/* Header - full width */}
       <header className="sticky top-0 z-50 border-b border-border bg-card">
-        <div className="flex h-16 items-center gap-4 px-4 lg:px-6 max-w-[1200px] mx-auto w-full">
+        <div className="flex h-16 items-center gap-4 px-4 lg:px-6 w-full">
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="lg:hidden">
@@ -110,21 +110,19 @@ const AdminLayout = () => {
         </div>
       </header>
 
-      {/* Conteúdo principal centralizado */}
-      <div className="flex justify-center">
-        <div className="flex w-full max-w-[1200px]">
-          {/* Sidebar - Desktop */}
-          <aside className="hidden lg:block w-64 border-r border-border bg-card">
-            <div className="sticky top-16 p-6">
-              <NavLinks />
-            </div>
-          </aside>
+      {/* Conteúdo principal full-width */}
+      <div className="flex w-full">
+        {/* Sidebar - Desktop (fixo 64) */}
+        <aside className="hidden lg:block w-64 border-r border-border bg-card">
+          <div className="sticky top-16 p-6">
+            <NavLinks />
+          </div>
+        </aside>
 
-          {/* Main Content */}
-          <main className="flex-1 p-6 lg:p-8">
-            <Outlet />
-          </main>
-        </div>
+        {/* Main Content - ocupa resto da largura */}
+        <main className="flex-1 p-6 lg:p-8">
+          <Outlet />
+        </main>
       </div>
     </div>
   );
