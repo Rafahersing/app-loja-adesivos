@@ -1,5 +1,5 @@
 // src/pages/admin/categories.tsx (Versão Mínima para Teste de Rota)
-
+// APAGAR DEPOIS DO TESTE
 import React from 'react';
 // import RequireAdmin from '@/components/layout/RequireAdmin'; // Comentar
 // import CategoryManager from '@/components/admin/CategoryManager'; // Comentar
