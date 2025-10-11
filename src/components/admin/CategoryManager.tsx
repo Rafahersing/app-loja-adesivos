@@ -1,18 +1,19 @@
-// src/components/admin/CategoryManager.tsx (CÓDIGO FINAL DE LÓGICA)
+// src/components/admin/CategoryManager.tsx
 
 import React, { useState, useEffect } from 'react';
-// ⚠️ VERIFIQUE ESTE CAMINHO ⚠️
-import { supabase } from '@/lib/utils'; 
+import { supabase } from '@/lib/utils'; // Use seu caminho real de importação
 
+// 1. Corrigido: Interface para usar 'name'
 interface Category {
   id: string;
-  nome: string;
+  name: string; // COLUNA CORRETA NO BANCO DE DADOS
   slug: string;
 }
 
 const CategoryManager: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [newCategoryName, setNewCategoryName] = useState('');
+  // Corrigido: Variável para armazenar o nome
+  const [newCategoryName, setNewCategoryName] = useState(''); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,16 +21,18 @@ const CategoryManager: React.FC = () => {
   const fetchCategories = async () => {
     setLoading(true);
     setError(null);
+    
     const { data, error } = await supabase
       .from('categorias')
-      .select('id, nome, slug')
-      .order('nome', { ascending: true });
+      // 2. Corrigido: SELECT pela coluna 'name'
+      .select('id, name, slug') 
+      .order('name', { ascending: true }); // ORDER BY 'name'
 
     if (error) {
-      // Se houver erro, a RLS do Supabase é o principal suspeito (já corrigido)
       setError('Erro ao carregar categorias: ' + error.message);
     } else if (data) {
-      setCategories(data);
+      // O Supabase retorna um array com as colunas certas, basta tipar.
+      setCategories(data as Category[]); 
     }
     setLoading(false);
   };
@@ -42,17 +45,24 @@ const CategoryManager: React.FC = () => {
     setLoading(true);
     setError(null);
 
+    // Simplificando o SLUG: Converte nome para minúsculas e substitui espaços por traços
     const newSlug = newCategoryName.trim().toLowerCase().replace(/\s+/g, '-');
 
     const { error } = await supabase
       .from('categorias')
-      .insert([{ nome: newCategoryName.trim(), slug: newSlug }]);
+      // 3. Corrigido: INSERT na coluna 'name'
+      .insert([
+        { 
+            name: newCategoryName.trim(), // Use 'name'
+            slug: newSlug 
+        }
+      ]);
 
     if (error) {
       setError('Erro ao adicionar categoria: ' + error.message);
     } else {
       setNewCategoryName('');
-      await fetchCategories(); 
+      await fetchCategories(); // Recarrega a lista
     }
     setLoading(false);
   };
@@ -61,8 +71,8 @@ const CategoryManager: React.FC = () => {
     fetchCategories();
   }, []);
 
-  // Mensagens de Estado
   if (loading && categories.length === 0) return <div className="p-4 text-gray-500">Carregando categorias...</div>;
+  // Se houver erro aqui, é um erro de RLS ou outro erro inesperado
   if (error) return <div className="p-4 text-red-600">Erro: {error}</div>;
 
   return (
@@ -92,8 +102,8 @@ const CategoryManager: React.FC = () => {
       <ul className="border rounded divide-y">
         {categories.map((category) => (
           <li key={category.id} className="p-3 flex justify-between items-center">
-            <span>{category.nome} ({category.slug})</span>
-            {/* Aqui entrariam os botões de Editar e Deletar */}
+            {/* 4. Corrigido: Renderiza category.name */}
+            <span>{category.name} ({category.slug})</span> 
           </li>
         ))}
       </ul>
