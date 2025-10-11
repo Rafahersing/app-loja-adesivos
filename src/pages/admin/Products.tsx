@@ -136,12 +136,25 @@ const Products = () => {
       return;
     }
 
-    // --- SIMULAÇÃO DA LEITURA E PROCESSAMENTO DO ARQUIVO CSV/EXCEL ---
-    const mockBulkData = [
-        { title: 'Upload Açaí Premium', imageUrl: 'https://images.unsplash.com/photo-1549488344-93836d540203', category: 'acai', price: 35.00, description: 'Açaí de altíssima qualidade' },
-        { title: 'Upload Salgado Mix', imageUrl: 'https://images.unsplash.com/photo-1547432095-d227361a6b0c', category: 'salgados', price: 12.00, description: 'Combo de salgados fritos' },
-        { title: 'Upload Suco Verde Detox', imageUrl: 'https://images.unsplash.com/photo-1579737190977-17559e519e99', category: 'sucos', price: 18.00, description: 'Suco natural desintoxicante' },
-    ];
+    // ⭐️ ATUALIZAÇÃO: Resetar para um placeholder (a implementação real precisa de bibliotecas) ⭐️
+const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+        toast.error("Nenhum arquivo selecionado.");
+        return;
+    }
+    
+    // Limpa o input de arquivo
+    e.target.value = '';
+
+    // TODO: Implementar lógica real de leitura de arquivo (CSV/Excel) e INSERT MANY no Supabase
+    // Isso requer uma biblioteca (como papaparse, xlsx) que não podemos instalar neste ambiente.
+
+    toast.info(`Simulação: Arquivo ${file.name} recebido. A importação real será implementada na próxima fase.`);
+    
+    // Mantemos a mudança de aba opcionalmente, mas não adicionamos produtos
+    setActiveTab("bulk"); 
+};
     
     // Calcula o próximo ID disponível
     const maxCurrentId = products.length > 0 ? Math.max(...products.map(p => p.id)) : 100;
