@@ -29,10 +29,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Cria e exporta o cliente Supabase
 export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as string);
 
-// src/lib/utils.ts (ou onde suas funções utilitárias estão)
-
-// ... (seus imports e outras funções, ex: supabase) ...
-
 /**
  * Converte uma string em um formato URL-friendly (slug).
  * Ex: "Açaí & Lanches" -> "acai-e-lanches"
