@@ -1,8 +1,6 @@
-// src/components/layout/RequireAdmin.tsx (CÓDIGO FINAL DE PROTEÇÃO - COM ALIAS)
-
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-// ⭐️ CORRIGIDO: Usando o ALIAS para consistência com o restante do projeto
+// CORRIGIDO: Usando o ALIAS para consistência
 import { supabase } from "@/lib/utils"; 
 
 const RequireAdmin = () => {
@@ -11,21 +9,28 @@ const RequireAdmin = () => {
 
   useEffect(() => {
     async function checkAdmin() {
+      // 1. Obter o usuário logado
       const { data: { user } } = await supabase.auth.getUser();
+
       let userIsAdmin = false;
       
+      // 2. Verificar o status de administrador, se o usuário existir
       if (user) {
+        // Garantindo que a app_metadata está sendo verificada corretamente
         userIsAdmin = user.app_metadata.is_admin === true;
       }
       
+      // 3. Checagem Principal: O usuário está logado E ele é admin?
       setIsAdmin(!!user && userIsAdmin);
-      // ESSENCIAL: Encerrar o estado de carregamento para evitar a tela em branco.
+
+      // 4. ESSENCIAL: Encerrar o estado de carregamento.
       setIsLoading(false);
     }
     
     checkAdmin();
   }, []);
 
+  // 1. Mostrar Carregando
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -34,10 +39,12 @@ const RequireAdmin = () => {
     );
   }
 
+  // 2. Acesso Bloqueado: Redireciona para a Home (se não for admin)
   if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 
+  // 3. Acesso Permitido: Renderiza o componente filho (AdminLayout)
   return <Outlet />;
 };
 
