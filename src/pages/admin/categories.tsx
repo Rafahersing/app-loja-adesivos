@@ -11,7 +11,7 @@ const AdminCategoriesPage: React.FC = () => {
             <div className="container mx-auto p-4">
                 <h1>Teste de Rota: Categorias</h1>
             </div>
-        // </RequireAdmin>
+        // </RequireAdmin> // APAGAR DEPOIS DO TESTE
     );
 };
 
