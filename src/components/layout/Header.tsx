@@ -25,13 +25,14 @@ export const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between gap-4">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-primary">
-              <span className="text-xl font-bold text-primary-foreground">P</span>
-            </div>
-            <span className="hidden text-xl font-bold sm:inline-block">PixelStore</span>
-          </Link>
+          {/* Logo personalizada */}
+<Link to="/" className="flex items-center space-x-2">
+  <img
+    src="https://pub-5c45cfd873454d96a8bc860a71c4c505.r2.dev/Logo%20dourado%20mais%20claro.png"
+    alt="Logo"
+    className="h-10 w-auto"
+  />
+</Link>
 
           {/* Search Bar */}
           <form onSubmit={handleSearch} className="hidden flex-1 max-w-xl md:flex">
