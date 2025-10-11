@@ -25,17 +25,23 @@ const AdminCategoriesPage: React.FC = () => {
 
   // 1. FUNÇÃO PARA BUSCAR CATEGORIAS NO SUPABASE
   const fetchCategories = async () => {
+    // ⭐️ TESTE DE DEBBUG: Adicione um log aqui para ver se a função é chamada
+    console.log("Tentando buscar categorias..."); 
+    
     setLoading(true);
+    // VERIFIQUE: Se o objeto 'supabase' ou a função 'from' são inválidos, quebra aqui.
     const { data, error } = await supabase
-      .from('categorias')
+      .from('categorias') // VERIFIQUE: O nome da sua tabela é 'categorias'
       .select('id, name, slug')
       .order('name', { ascending: true });
 
     if (error) {
-      console.error('Erro ao carregar categorias:', error);
+      // ⭐️ TESTE DE DEBBUG: Adicione um log aqui se houver erro no Supabase
+      console.error('ERRO SUPABASE:', error); 
       toast.error('Erro ao carregar lista de categorias.');
       setCategories([]); 
     } else if (data) {
+      console.log("Categorias carregadas com sucesso:", data); // Log de sucesso
       setCategories(data as Category[]);
     }
     setLoading(false);
