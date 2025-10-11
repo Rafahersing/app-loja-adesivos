@@ -17,11 +17,8 @@ import Products from "./pages/admin/Products";
 import Orders from "./pages/admin/Orders";
 import Users from "./pages/admin/Users";
 import NotFound from "./pages/NotFound";
-// 🚨 NOVA IMPORTAÇÃO DE SEGURANÇA (já estava ok)
 import RequireAdmin from "@/components/layout/RequireAdmin";
 
-// ⭐️ IMPORTAÇÃO CORRIGIDA ⭐️
-// Importa o componente da página de gerenciamento de categorias
 import Categories from "./pages/admin/categories"; 
 
 const queryClient = new QueryClient();
@@ -44,18 +41,22 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
           </Route>
 
-          {/* ROTAS ADMIN PROTEGIDAS */}
-          {/* Envolvemos o AdminLayout com RequireAdmin */}
+          {/* ROTAS ADMIN PROTEGIDAS (Parent) */}
           <Route element={<RequireAdmin />}>
+
+            {/* ⭐️ ROTA DE CATEGORIAS DESANINHADA E COMPLETA ⭐️ */}
+            {/* O Categories.tsx já usa o AdminLayout internamente se necessário, 
+               ou, no nosso caso, ele já usa o RequireAdmin diretamente. */}
+            <Route path="/admin/categories" element={<AdminLayout><Categories /></AdminLayout>} />
+
+            {/* ROTAS ANINHADAS DE ADMIN (Dashboard, Produtos, etc.) */}
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Dashboard />} />
               <Route path="products" element={<Products />} />
               <Route path="orders" element={<Orders />} />
               <Route path="users" element={<Users />} />
-              
-              {/* ⭐️ ROTA DE CATEGORIAS ADICIONADA ⭐️ */}
-              <Route path="categories" element={<Categories />} />
             </Route>
+            
           </Route>
 
           {/* Catch-all */}
