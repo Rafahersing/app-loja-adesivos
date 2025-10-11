@@ -83,7 +83,8 @@ const Products = () => {
   const fetchProducts = async () => {
     setLoadingProducts(true);
     
-    // Consulta produtos e as categorias relacionadas (JOIN)
+    // ⭐️ AJUSTE NA CONSULTA PARA EVITAR ERRO 400 ⭐️
+    // 1. Buscamos produtos e a ID da categoria na tabela de junção
     const { data, error } = await supabase
         .from('produtos')
         .select(`
@@ -92,37 +93,52 @@ const Products = () => {
             price,
             image_url,
             description,
-            produtos_categorias (
-                categorias ( slug )
-            )
+            produtos_categorias!inner(category_id)
         `)
         .order('id', { ascending: false });
 
     if (error) {
         console.error('Erro ao carregar produtos:', error);
-        // Não mostrar toast se o erro for 'permission denied', mas sim se for um erro crítico de conexão
-        if (!error.message.includes('permission denied')) { 
-             toast.error('Erro ao carregar lista de produtos. Verifique as tabelas.');
-        }
+        toast.error('Erro ao carregar lista de produtos. Verifique as Policies do Supabase.');
     } else if (data) {
-        const mappedProducts = data.map((p: any) => ({
-            id: p.id,
-            title: p.title,
-            price: p.price,
-            image_url: p.image_url,
-            description: p.description,
-            // Extrai o slug da categoria, assumindo uma categoria por produto para simplificar
-            category_slug: p.produtos_categorias[0]?.categorias?.slug || 'sem-categoria'
-        }));
+        // Mapeia a ID da Categoria para o SLUG da Categoria
+        const categoryIdToSlug: { [key: string]: string } = categories.reduce((map, cat) => {
+            map[cat.id] = cat.slug;
+            return map;
+        }, {});
+        
+        const mappedProducts = data.map((p: any) => {
+            // Pega o ID da categoria da primeira relação
+            const categoryId = p.produtos_categorias[0]?.category_id;
+            
+            return {
+                id: p.id,
+                title: p.title,
+                price: p.price,
+                image_url: p.image_url,
+                description: p.description,
+                // Converte o ID para o SLUG
+                category_slug: categoryIdToSlug[categoryId] || 'sem-categoria'
+            };
+        });
         setProducts(mappedProducts as Product[]);
     }
     setLoadingProducts(false);
   }
 
+  // Use um useEffect para buscar categorias primeiro e, em seguida, produtos
   useEffect(() => {
     fetchCategories();
-    fetchProducts();
   }, []);
+  
+  // Quando as categorias mudam, recarrega os produtos
+  useEffect(() => {
+      if(categories.length > 0) {
+          fetchProducts();
+      }
+  // Adicionamos categories.length como dependência para garantir que fetchProducts rode após categories ser populado
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories.length]);
 
   // --- Handlers de Formulário ---
 
@@ -242,7 +258,7 @@ const Products = () => {
     
   // --- Importação em Massa (Lógica Real) ---
     
-   const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
+  const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
       // Mapeamento de Slug para ID
       const categoryMap: { [key: string]: string } = categories.reduce((map, cat) => {
           map[cat.slug] = cat.id;
@@ -258,8 +274,9 @@ const Products = () => {
       // Mapeamento tolerante a diferentes nomes/casos
       headers.forEach((h, i) => {
           const normalized = h.toLowerCase().trim()
-            .replace(/[^a-z0-9]/g, ''); // Remove todos os caracteres não alfanuméricos
+            .replace(/[^a-z0-9\s]/g, ''); // Permite espaços para checar 'url da imagem'
             
+          // ⭐️ AJUSTE NO MAPEAMENTO DO URL DA IMAGEM ⭐️
           if (normalized.includes('url') || normalized.includes('imagem')) headerMap['url'] = i;
           else if (normalized.includes('categoria')) headerMap['categoria'] = i;
           else if (normalized.includes('titulo') || normalized.includes('nome')) headerMap['titulo'] = i;
@@ -273,14 +290,14 @@ const Products = () => {
       const descIndex = headerMap['descricao'];
       const priceIndex = headerMap['preco']; 
       
-      // ⭐️ MUDANÇA AQUI: Mensagem de erro mais clara e só lança erro se o TÍTULO (mínimo) não for encontrado.
+      // Verificação Mínima
       if (titleIndex === undefined) {
            throw new Error("Colunas obrigatórias (Título) não encontradas. Verifique se o cabeçalho contém 'Título' ou 'Nome'.");
       }
       
+      // Aviso se faltar algo crítico (além do Título)
       if (urlIndex === undefined || categoryIndex === undefined || priceIndex === undefined) {
-           // Em vez de quebrar, apenas avisa que alguns dados podem faltar
-           toast.warning("Atenção: Nem todas as colunas obrigatórias (URL, Categoria, Preço) foram encontradas. A importação pode falhar.");
+           toast.warning("Atenção: Nem todas as colunas obrigatórias (URL, Categoria, Preço) foram encontradas. A importação pode resultar em produtos incompletos.");
       }
       
       for (let i = 0; i < rows.length; i++) {
@@ -292,14 +309,13 @@ const Products = () => {
 
           const tempProductId = crypto.randomUUID(); 
 
-          // Prepara o preço, verifica se o índice existe antes de tentar acessar
+          // Prepara o preço, verifica se o índice existe
           const priceValue = (priceIndex !== undefined && row[priceIndex]) 
                              ? row[priceIndex].toString().replace(',', '.').trim() 
                              : '0';
 
           const product = {
               id: tempProductId, 
-              // Verifica se o índice existe antes de tentar acessar
               image_url: (urlIndex !== undefined && row[urlIndex]) ? row[urlIndex].trim() : null,
               title: title,
               description: (descIndex !== undefined && row[descIndex]) ? row[descIndex].trim() : 'Sem descrição.',
@@ -331,7 +347,6 @@ const Products = () => {
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     
-    // Limpa o input imediatamente
     if (e.target) e.target.value = '';
 
     if (!file) {
