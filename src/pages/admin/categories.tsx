@@ -1,17 +1,15 @@
-// src/pages/admin/categories.tsx (CÓDIGO FINAL DE ROTA)
+// src/pages/admin/categories.tsx (SEM REQUIREADMIN)
 
 import React from 'react';
-import RequireAdmin from '@/components/layout/RequireAdmin';
+// import RequireAdmin from '@/components/layout/RequireAdmin'; // REMOVIDO!
 import CategoryManager from '@/components/admin/CategoryManager'; 
 
 const AdminCategoriesPage: React.FC = () => {
     return (
-        // Reintroduzimos o RequireAdmin, que falhou antes
-        <RequireAdmin>
-            <div className="container mx-auto p-4">
-                <CategoryManager />
-            </div>
-        </RequireAdmin>
+        // REMOVIDO O WRAPPER
+        <div className="container mx-auto p-4">
+            <CategoryManager />
+        </div>
     );
 };
 
