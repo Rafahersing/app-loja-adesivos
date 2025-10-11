@@ -1,13 +1,13 @@
 // src/pages/admin/categories.tsx
 
-import React, { useState, useEffect } from "react";
-// O RequireAdmin continua comentado por enquanto, até resolvermos a autenticação
+import React, { useState, useEffect, useMemo } from "react";
+// O RequireAdmin continua comentado
 // import RequireAdmin from "@/components/layout/RequireAdmin"; 
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Trash2, Loader2, Edit, Plus } from "lucide-react"; // Importar 'Edit' e 'Plus'
+import { Trash2, Loader2, Edit, Plus, Search } from "lucide-react"; // Importar 'Search'
 import { toast } from "sonner";
 import { supabase, slugify } from '@/lib/utils'; 
 
@@ -22,12 +22,14 @@ const AdminCategoriesPage: React.FC = () => {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // ⭐️ NOVO ESTADO: Armazena a categoria que está sendo editada ⭐️
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  
+  // ⭐️ NOVO ESTADO: Termo de pesquisa ⭐️
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Função unificada para buscar (mantida)
+
+  // Função para buscar (mantida)
   const fetchCategories = async () => {
-    // ... (fetchCategories continua o mesmo) ...
     setLoading(true);
     const { data, error } = await supabase
       .from('categorias')
@@ -48,14 +50,28 @@ const AdminCategoriesPage: React.FC = () => {
     fetchCategories();
   }, []);
   
-  // ⭐️ NOVO HANDLER: Entra no modo de edição ⭐️
+  // ⭐️ NOVO: Lógica de Filtragem (Pesquisa no Frontend) ⭐️
+  const filteredCategories = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return categories;
+    }
+    
+    const lowerCaseSearch = searchTerm.toLowerCase().trim();
+    
+    return categories.filter(category => 
+      category.name.toLowerCase().includes(lowerCaseSearch) ||
+      category.slug.toLowerCase().includes(lowerCaseSearch)
+    );
+  }, [categories, searchTerm]); // Recalcula sempre que a lista ou o termo mudar
+
+
   const handleEditCategory = (category: Category) => {
     setEditingCategory(category);
     setNewCategoryName(category.name);
   };
 
-  // ⭐️ HANDLER UNIFICADO: Adicionar ou Salvar Edição ⭐️
   const handleSaveCategory = async (e: React.FormEvent) => {
+    // ... (handleSaveCategory permanece o mesmo) ...
     e.preventDefault();
     const name = newCategoryName.trim();
 
@@ -66,7 +82,6 @@ const AdminCategoriesPage: React.FC = () => {
     
     const slug = slugify(name);
     
-    // Validação de unicidade para o slug
     const isSlugDuplicate = categories.some(
         c => c.slug === slug && c.id !== editingCategory?.id
     );
@@ -87,7 +102,7 @@ const AdminCategoriesPage: React.FC = () => {
         
         if (!error) {
             toast.success(`Categoria "${name}" atualizada com sucesso!`);
-            setEditingCategory(null); // Sai do modo edição
+            setEditingCategory(null);
         }
     } else {
         // Lógica de ADIÇÃO (INSERT)
@@ -105,22 +120,20 @@ const AdminCategoriesPage: React.FC = () => {
       toast.error(`Erro: ${error.message}`);
     } else {
       setNewCategoryName("");
-      fetchCategories(); // Recarrega a lista
+      fetchCategories(); 
     }
     
     setIsSubmitting(false);
   };
   
-  // Handler para cancelar a edição
   const handleCancelEdit = () => {
       setEditingCategory(null);
       setNewCategoryName("");
   }
 
 
-  // Função para deletar (mantida)
   const handleDeleteCategory = async (id: string, name: string) => {
-    // ... (handleDeleteCategory continua o mesmo) ...
+    // ... (handleDeleteCategory permanece o mesmo) ...
     if (!window.confirm(`Tem certeza que deseja excluir a categoria: "${name}"?`)) {
       return;
     }
@@ -207,6 +220,20 @@ const AdminCategoriesPage: React.FC = () => {
       <Card className="p-6">
           <h3 className="text-xl font-semibold mb-4">Lista de Categorias</h3>
           
+          {/* ⭐️ NOVO: Input de Pesquisa ⭐️ */}
+          <div className="relative mb-6">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                  type="text"
+                  placeholder="Pesquisar por nome ou slug..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                  disabled={loading}
+              />
+          </div>
+
+          {/* Indicador de Carregamento */}
           {loading && categories.length === 0 && (
               <div className="flex justify-center items-center py-4 text-muted-foreground">
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
@@ -214,12 +241,20 @@ const AdminCategoriesPage: React.FC = () => {
               </div>
           )}
 
+          {/* Mensagem de Vazio Pós-Filtro */}
+          {!loading && categories.length > 0 && filteredCategories.length === 0 && (
+              <p className="text-center text-muted-foreground">Nenhuma categoria encontrada para o termo "{searchTerm}".</p>
+          )}
+          
+          {/* Mensagem de Vazio Inicial */}
           {!loading && categories.length === 0 && (
               <p className="text-center text-muted-foreground">Nenhuma categoria encontrada. Adicione uma acima!</p>
           )}
 
+
+          {/* Renderização da Lista (usa filteredCategories) */}
           <div className="space-y-3">
-              {categories.map((category) => (
+              {filteredCategories.map((category) => (
                   <div 
                       key={category.id} 
                       className="flex items-center justify-between p-3 border rounded-lg bg-secondary/10"
@@ -228,7 +263,6 @@ const AdminCategoriesPage: React.FC = () => {
                           {category.name} <span className="text-sm text-muted-foreground">({category.slug})</span>
                       </p>
                       <div className="flex gap-2">
-                          {/* ⭐️ NOVO BOTÃO DE EDIÇÃO ⭐️ */}
                           <Button
                               variant="outline"
                               size="icon"
