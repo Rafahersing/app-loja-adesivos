@@ -108,9 +108,7 @@ const AdminLayout = () => {
               alt="Logo"
               className="h-10 w-auto"
             />
-            <div className="hidden sm:block">
-              <p className="text-xs text-muted-foreground">Admin</p>
-            </div>
+            
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <Button variant="outline" asChild>
