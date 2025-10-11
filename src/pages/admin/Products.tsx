@@ -87,52 +87,51 @@ const Products = () => {
     setLoadingCategories(false);
   };
     
-  // 2. Buscar Produtos Reais
-  const fetchProducts = async () => {
-    setLoadingProducts(true);
-    
-    // ⭐️ AJUSTE NA CONSULTA PARA EVITAR ERRO 400 ⭐️
-    // 1. Buscamos produtos e a ID da categoria na tabela de junção
-    const { data, error } = await supabase
-        .from('produtos')
-        .select(`
-            id,
-            title,
-            price,
-            image_url,
-            description,
-            produtos_categorias!inner(category_id)
-        `)
-        .order('id', { ascending: false });
+ // src/pages/admin/Products.tsx
 
-    if (error) {
-        console.error('Erro ao carregar produtos:', error);
-        toast.error('Erro ao carregar lista de produtos. Verifique as Policies do Supabase.');
-    } else if (data) {
-        // Mapeia a ID da Categoria para o SLUG da Categoria
-        const categoryIdToSlug: { [key: string]: string } = categories.reduce((map, cat) => {
-            map[cat.id] = cat.slug;
-            return map;
-        }, {});
-        
-        const mappedProducts = data.map((p: any) => {
-            // Pega o ID da categoria da primeira relação
-            const categoryId = p.produtos_categorias[0]?.category_id;
-            
-            return {
-                id: p.id,
-                title: p.title,
-                price: p.price,
-                image_url: p.image_url,
-                description: p.description,
-                // Converte o ID para o SLUG
-                category_slug: categoryIdToSlug[categoryId] || 'sem-categoria'
-            };
-        });
-        setProducts(mappedProducts as Product[]);
-    }
-    setLoadingProducts(false);
+// 2. Buscar Produtos Reais
+const fetchProducts = async () => {
+  // ... (código anterior)
+    
+  // 1. Buscamos produtos e a ID da categoria na tabela de junção
+  const { data, error } = await supabase
+      .from('produtos')
+      .select(`
+          id,
+          // MUDAR title, description, e price para nome, descricao, preço
+          nome,
+          preço, 
+          imagem_url, 
+          descricao,
+          produtos_categorias!inner(category_id)
+      `)
+      .order('id', { ascending: false });
+
+  // ... (código de erro)
+
+  } else if (data) {
+      // ... (código de categoriaIdToSlug)
+      
+      const mappedProducts = data.map((p: any) => {
+          const categoryId = p.produtos_categorias[0]?.category_id;
+          
+          return {
+              id: p.id,
+              // Mapear de p.nome para nome
+              nome: p.nome, 
+              // Mapear de p.preço para price
+              price: p.preço, 
+              // Mapear de p.imagem_url para image_url
+              image_url: p.imagem_url, 
+              // Mapear de p.descricao para descricao
+              descricao: p.descricao,
+              category_slug: categoryIdToSlug[categoryId] || 'sem-categoria'
+          };
+      });
+      setProducts(mappedProducts as Product[]);
   }
+  setLoadingProducts(false);
+}
 
   // Use um useEffect para buscar categorias primeiro e, em seguida, produtos
   useEffect(() => {
