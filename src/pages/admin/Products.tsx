@@ -23,7 +23,7 @@ interface Category {
 
 // Interface para o produto
 interface Product {
-    id: number; // Supondo que o mock usa número
+    id: number;
     title: string;
     imageUrl: string;
     category: string;
@@ -110,7 +110,7 @@ const Products = () => {
 
     } else {
         // Lógica de ADIÇÃO (Mock)
-        const newId = products.length > 0 ? products[0].id + 1 : 1; // ID simples
+        const newId = products.length > 0 ? products[0].id + 1 : 1;
         const newProduct: Product = {
             id: newId,
             ...formData,
@@ -128,54 +128,23 @@ const Products = () => {
     setActiveTab("list");
   };
 
-  // ⭐️ FUNÇÃO ATUALIZADA: Implementação simulada do Upload em Massa ⭐️
+  // ⭐️ handleBulkUpload ATUALIZADO PARA PLACEHOLDER LIMPO ⭐️
   const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) {
-      toast.error("Nenhum arquivo selecionado.");
-      return;
-    }
+    
+    // Limpa o input imediatamente para permitir novo upload
+    e.target.value = '';
 
-    // ⭐️ ATUALIZAÇÃO: Resetar para um placeholder (a implementação real precisa de bibliotecas) ⭐️
-const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
     if (!file) {
         toast.error("Nenhum arquivo selecionado.");
         return;
     }
-    
-    // Limpa o input de arquivo
-    e.target.value = '';
 
     // TODO: Implementar lógica real de leitura de arquivo (CSV/Excel) e INSERT MANY no Supabase
-    // Isso requer uma biblioteca (como papaparse, xlsx) que não podemos instalar neste ambiente.
-
-    toast.info(`Simulação: Arquivo ${file.name} recebido. A importação real será implementada na próxima fase.`);
+    toast.info(`Simulação: Arquivo '${file.name}' recebido. A importação real será implementada na próxima fase.`);
     
-    // Mantemos a mudança de aba opcionalmente, mas não adicionamos produtos
+    // Mantém na aba bulk (opcional, pode voltar para list se preferir)
     setActiveTab("bulk"); 
-};
-    
-    // Calcula o próximo ID disponível
-    const maxCurrentId = products.length > 0 ? Math.max(...products.map(p => p.id)) : 100;
-    
-    const newProducts: Product[] = mockBulkData.map((item, index) => ({
-        ...item,
-        // Garante que os novos IDs são únicos (para o mock)
-        id: maxCurrentId + 1 + index,
-        price: item.price, // Já está como number no mock
-    }));
-
-    // Atualização do state local com os novos produtos
-    setProducts(prev => [...newProducts, ...prev]);
-
-    // Limpa o input de arquivo (para que o onChange dispare novamente se o mesmo arquivo for selecionado)
-    e.target.value = ''; 
-    
-    toast.success(`${newProducts.length} produtos importados em massa com sucesso!`);
-    setActiveTab("list"); // Move o usuário para a lista
-    
-    // TODO: Adicionar lógica real de INSERT MANY do Supabase aqui
   };
   // -------------------------------------------------------------
 
@@ -184,7 +153,7 @@ const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditingProduct(product);
     setFormData({
         title: product.title,
-        category: product.category, // Categoria é o slug
+        category: product.category,
         price: product.price.toFixed(2),
         imageUrl: product.imageUrl,
         description: product.description,
@@ -358,7 +327,7 @@ const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
                   type="file"
                   accept=".csv,.xlsx,.xls"
                   className="max-w-xs mx-auto"
-                  onChange={handleBulkUpload} // ⭐️ AGORA CONECTADO À NOVA LÓGICA ⭐️
+                  onChange={handleBulkUpload}
                 />
               </div>
 
