@@ -4,7 +4,8 @@ export interface Product {
   description: string;
   category: string;
   price: number;
-  imageUrl: string;
+  // Campos de imagem que você já usa
+  imageUrl: string; 
   imageUrlHighRes: string;
   createdAt: string;
 }
