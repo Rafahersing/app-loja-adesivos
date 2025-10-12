@@ -6,42 +6,43 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Upload, Trash2, Edit, Loader2 } from "lucide-react";
+import { Plus, Upload, Trash2, Edit, Loader2, CheckSquare, Square } from "lucide-react";
 import * as XLSX from "xlsx";
-import { supabase, slugify, fetchCategories as fetchCategoriesFromUtils } from "@/lib/utils"; // Importar fetchCategories do utils com alias
+import { supabase, fetchCategories as fetchCategoriesFromUtils } from "@/lib/utils";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 
-// Interface para a categoria (usada no state `categories`)
+// Interface para a categoria
 interface Category {
   id: string;
   nome: string;
   descricao?: string;
 }
 
-// Interface para o produto (usada no state `products`)
+// Interface para o produto
 interface Product {
   id: string;
   nome: string;
-  imagem_url: string; // Corrigido para corresponder ao DB
-  category_nome: string;
-  preco: number; // Corrigido para corresponder ao DB
+  imagem_url: string;
+  category_ids: string[];
+  category_names: string[];
+  preco: number;
   descricao: string;
 }
 
 // Interface para o formulário
 interface FormData {
   nome: string;
-  category_nome: string;
-  preco: string; // Mantido como string para input do formulário
-  imagem_url: string; // Corrigido para corresponder ao DB
+  category_ids: string[];
+  preco: string;
+  imagem_url: string;
   descricao: string;
 }
 
 const initialFormData: FormData = {
   nome: "",
-  category_nome: "",
+  category_ids: [],
   preco: "",
   imagem_url: "",
   descricao: "",
@@ -54,49 +55,65 @@ const Products = () => {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [bulkEditMode, setBulkEditMode] = useState(false);
+  const [bulkEditData, setBulkEditData] = useState({
+    preco: "",
+    category_ids: [] as string[],
+    descricao: "",
+  });
 
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [activeTab, setActiveTab] = useState("list");
 
-  // --- Funções de Carregamento de Dados ---
-
-  // 1. Buscar Categorias (OK)
+  // Buscar Categorias
   const fetchCategories = async () => {
     setLoadingCategories(true);
-    const fetchedCategories = await fetchCategoriesFromUtils(); // Usar a função do utils
+    const fetchedCategories = await fetchCategoriesFromUtils();
     setCategories(fetchedCategories);
     setLoadingCategories(false);
   };
 
-  // 2. Buscar Produtos (CORREÇÃO CRÍTICA 1: SELECT)
+  // Buscar Produtos com imagens da tabela arquivos
   const fetchProducts = async () => {
     setLoadingProducts(true);
 
     const { data, error } = await supabase
       .from("produtos")
-      .select(`id, titulo, preco, descricao, produtos_categorias!inner(categoria_id)`)
-      .order("titulo", { ascending: false });
+      .select(`
+        id, 
+        titulo, 
+        preco, 
+        descricao,
+        arquivos(url),
+        produtos_categorias(categoria_id)
+      `)
+      .order("titulo", { ascending: true });
 
     if (error) {
       console.error("Erro ao carregar produtos:", error);
-      toast.error("Erro ao carregar lista de produtos. Verifique as Policies de RLS (SELECT) no Supabase.");
+      toast.error("Erro ao carregar lista de produtos.");
     } else if (data) {
-      const categoryIdToSlug: { [key: string]: string } = categories.reduce((map, cat) => {
+      const categoryIdToName: { [key: string]: string } = categories.reduce((map, cat) => {
         map[cat.id] = cat.nome;
         return map;
-      }, {});
+      }, {} as { [key: string]: string });
 
       const mappedProducts = data.map((p: any) => {
-        const categoryId = p.produtos_categorias[0]?.categoria_id;
+        const categoryIds = p.produtos_categorias?.map((pc: any) => pc.categoria_id) || [];
+        const categoryNames = categoryIds.map((id: string) => categoryIdToName[id] || "Desconhecida");
+        const imageUrl = p.arquivos && p.arquivos.length > 0 ? p.arquivos[0].url : "";
 
         return {
           id: p.id,
           nome: p.titulo,
-          preco: p.preco,
-          imagem_url: "", // Não há coluna imagem_url na tabela produtos
-          descricao: p.descricao,
-          category_nome: categoryIdToSlug[categoryId] || "sem-categoria"
+          preco: parseFloat(p.preco) || 0,
+          imagem_url: imageUrl,
+          descricao: p.descricao || "",
+          category_ids: categoryIds,
+          category_names: categoryNames,
         };
       });
       setProducts(mappedProducts as Product[]);
@@ -104,40 +121,37 @@ const Products = () => {
     setLoadingProducts(false);
   };
 
-  // Use um useEffect para buscar categorias primeiro
   useEffect(() => {
     fetchCategories();
   }, []);
 
-  // Quando as categorias mudam, recarrega os produtos
   useEffect(() => {
     if (categories.length > 0) {
       fetchProducts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories.length]);
+  }, [categories]);
 
-  // --- Handlers de Formulário ---
-
+  // Handlers de Formulário
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id as keyof FormData]: value }));
   };
 
-  const handleSelectChange = (value: string) => {
-    setFormData(prev => ({ ...prev, category_nome: value }));
+  const handleCategoryToggle = (categoryId: string) => {
+    setFormData(prev => {
+      const newCategoryIds = prev.category_ids.includes(categoryId)
+        ? prev.category_ids.filter(id => id !== categoryId)
+        : [...prev.category_ids, categoryId];
+      return { ...prev, category_ids: newCategoryIds };
+    });
   };
 
-  const getCategoryName = (nome: string) => {
-    return categories.find(c => c.nome === nome)?.nome || "Categoria Desconhecida";
-  };
-
-  // --- Funções CRUD ---
-
+  // Salvar Produto
   const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const { nome, category_nome, preco, imagem_url, descricao } = formData;
+    const { nome, category_ids, preco, imagem_url, descricao } = formData;
 
     const priceValue = parseFloat(preco);
     if (isNaN(priceValue)) {
@@ -145,9 +159,13 @@ const Products = () => {
       return;
     }
 
-    const category = categories.find(c => c.nome === category_nome);
-    if (!category) {
-      toast.error("Categoria inválida ou não selecionada.");
+    if (category_ids.length === 0) {
+      toast.error("Selecione pelo menos uma categoria.");
+      return;
+    }
+
+    if (!imagem_url.trim()) {
+      toast.error("A URL da imagem é obrigatória.");
       return;
     }
 
@@ -157,60 +175,86 @@ const Products = () => {
       preco: priceValue
     };
 
-    let error = null;
+    let productId = editingProduct?.id;
 
     if (editingProduct) {
-      ({ error } = await supabase
+      const { error } = await supabase
         .from("produtos")
         .update(productData)
-        .eq("id", editingProduct.id));
+        .eq("id", editingProduct.id);
 
-      if (!error) {
-        const { error: catError } = await supabase
-          .from("produtos_categorias")
-          .upsert(
-            { produto_id: editingProduct.id, categoria_id: category.id },
-            { onConflict: "produto_id", ignoreDuplicates: false }
-          );
-
-        if (catError) console.error("Erro ao atualizar relação de categoria:", catError);
-
-        toast.success(`Produto \'${nome}\' atualizado com sucesso!`);
+      if (error) {
+        console.error("Erro ao atualizar produto:", error);
+        toast.error(`Falha ao atualizar produto: ${error.message}`);
+        return;
       }
+
+      // Deletar categorias antigas
+      await supabase
+        .from("produtos_categorias")
+        .delete()
+        .eq("produto_id", editingProduct.id);
+
+      // Deletar arquivos antigos
+      await supabase
+        .from("arquivos")
+        .delete()
+        .eq("produto_id", editingProduct.id);
+
     } else {
       const { data: insertedProduct, error: insertError } = await supabase
         .from("produtos")
         .insert(productData)
         .select("id");
 
-      error = insertError;
-
-      if (insertedProduct && insertedProduct.length > 0 && !insertError) {
-        const { error: catError } = await supabase
-          .from("produtos_categorias")
-          .insert({
-            produto_id: insertedProduct[0].id,
-            categoria_id: category.id
-          });
-
-        if (catError) console.error("Erro ao inserir relação de categoria:", catError);
-
-        toast.success(`Novo produto \'${nome}\' adicionado com sucesso!`);
+      if (insertError || !insertedProduct || insertedProduct.length === 0) {
+        console.error("Erro ao inserir produto:", insertError);
+        toast.error(`Falha ao criar produto: ${insertError?.message}`);
+        return;
       }
+
+      productId = insertedProduct[0].id;
     }
 
-    if (error) {
-      console.error("Erro de Supabase (Salvar Produto):", error);
-      toast.error(`Falha ao salvar produto: ${error.message}`);
-    } else {
-      setEditingProduct(null);
-      setFormData(initialFormData);
-      setActiveTab("list");
-      fetchProducts(); // Recarrega os dados
+    // Inserir novas categorias
+    const categoryInserts = category_ids.map(catId => ({
+      produto_id: productId,
+      categoria_id: catId
+    }));
+
+    const { error: catError } = await supabase
+      .from("produtos_categorias")
+      .insert(categoryInserts);
+
+    if (catError) {
+      console.error("Erro ao inserir categorias:", catError);
+      toast.error(`Falha ao associar categorias: ${catError.message}`);
+      return;
     }
+
+    // Inserir imagem na tabela arquivos
+    const { error: fileError } = await supabase
+      .from("arquivos")
+      .insert({
+        produto_id: productId,
+        url: imagem_url,
+        tipo: "imagem"
+      });
+
+    if (fileError) {
+      console.error("Erro ao inserir arquivo:", fileError);
+      toast.error(`Falha ao salvar imagem: ${fileError.message}`);
+      return;
+    }
+
+    toast.success(editingProduct ? `Produto atualizado com sucesso!` : `Novo produto adicionado com sucesso!`);
+    setEditingProduct(null);
+    setFormData(initialFormData);
+    setActiveTab("list");
+    fetchProducts();
   };
 
-
+  // Deletar Produto
   const handleDeleteProduct = async (productId: string, productName: string) => {
     if (!window.confirm(`Tem certeza que deseja excluir o produto: "${productName}"?`)) {
       return;
@@ -218,20 +262,19 @@ const Products = () => {
 
     setLoadingProducts(true);
 
-    // Primeiro, excluir as associações na tabela produtos_categorias
-    const { error: catError } = await supabase
+    // Excluir associações de categoria
+    await supabase
       .from("produtos_categorias")
       .delete()
       .eq("produto_id", productId);
 
-    if (catError) {
-      console.error("Erro ao excluir associações de categoria:", catError);
-      toast.error(`Falha ao excluir associações: ${catError.message}`);
-      setLoadingProducts(false);
-      return;
-    }
+    // Excluir arquivos
+    await supabase
+      .from("arquivos")
+      .delete()
+      .eq("produto_id", productId);
 
-    // Depois, excluir o produto
+    // Excluir produto
     const { error } = await supabase
       .from("produtos")
       .delete()
@@ -242,89 +285,12 @@ const Products = () => {
       toast.error(`Falha ao excluir: ${error.message}`);
     } else {
       toast.success(`Produto "${productName}" excluído com sucesso!`);
-      fetchProducts(); // Recarrega os dados
+      fetchProducts();
     }
     setLoadingProducts(false);
   };
 
-  // --- Importação em Massa (Lógica Real) ---
-
-  const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
-    const categoryMap: { [key: string]: string } = categories.reduce((map, cat) => {
-      map[cat.nome] = cat.id;
-      return map;
-    }, {});
-
-    const finalProducts = [];
-    const finalProductCategories = [];
-
-    const headerMap: { [key: string]: number } = {};
-
-    headers.forEach((h, i) => {
-      const normalized = h.toLowerCase().trim()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-      if (normalized.includes("url") || normalized.includes("imagem")) headerMap["url"] = i;
-      else if (normalized.includes("categoria")) headerMap["categoria"] = i;
-      else if (normalized.includes("titulo") || normalized.includes("nome")) headerMap["titulo"] = i;
-      else if (normalized.includes("descricao")) headerMap["descricao"] = i;
-      else if (normalized.includes("preco") || normalized.includes("valor")) headerMap["preco"] = i;
-    });
-
-    const urlIndex = headerMap["url"];
-    const categoryIndex = headerMap["categoria"];
-    const titleIndex = headerMap["titulo"];
-    const descIndex = headerMap["descricao"];
-    const priceIndex = headerMap["preco"];
-
-    if (titleIndex === undefined) {
-      throw new Error("Colunas obrigatórias (Título) não encontradas. Verifique se o cabeçalho contém \'Título\' ou \'Nome\'.");
-    }
-
-    if (urlIndex === undefined || categoryIndex === undefined || priceIndex === undefined) {
-      toast.warning("Atenção: Nem todas as colunas obrigatórias (URL, Categoria, Preço) foram encontradas. A importação pode resultar em produtos incompletos.");
-    }
-
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const rowNumber = i + 2;
-
-      const title = row[titleIndex]?.trim();
-      if (!title) continue;
-
-      const tempProductId = crypto.randomUUID();
-
-      const priceValue = (priceIndex !== undefined && row[priceIndex])
-        ? row[priceIndex].toString().replace(",", ".").trim()
-        : "0";
-
-      const product = {
-        id: tempProductId,
-        titulo: title,
-        descricao: (descIndex !== undefined && row[descIndex]) ? row[descIndex].trim() : "Sem descrição.",
-        preco: parseFloat(priceValue) || 0,
-      };
-
-      finalProducts.push(product);
-
-      if (categoryIndex !== undefined && row[categoryIndex]) {
-        const categoryName = row[categoryIndex]?.trim();
-        const categoryId = categoryMap[categoryName];
-
-        if (categoryId) {
-          finalProductCategories.push({
-            produto_id: tempProductId,
-            categoria_id: categoryId,
-          });
-        } else {
-          toast.warning(`Linha ${rowNumber}: Categoria "${categoryName}" não encontrada. Produto será importado, mas sem categoria.`);
-        }
-      }
-    }
-
-    return { finalProducts, finalProductCategories };
-  };
-
+  // Upload em Massa
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
@@ -344,62 +310,198 @@ const Products = () => {
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
 
-      const jsonProducts = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
+      const jsonProducts = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
       if (jsonProducts.length <= 1) {
         toast.error("O arquivo está vazio ou contém apenas cabeçalho.");
+        setUploading(false);
         return;
       }
 
       const [headers, ...rows] = jsonProducts;
 
-      const { finalProducts, finalProductCategories } = await processAndPrepareProducts(rows, headers);
+      const categoryMap: { [key: string]: string } = categories.reduce((map, cat) => {
+        map[cat.nome.toLowerCase()] = cat.id;
+        return map;
+      }, {} as { [key: string]: string });
 
-      if (finalProducts.length === 0) {
-        toast.info("Nenhum produto válido encontrado para importação.");
-        return;
+      const headerMap: { [key: string]: number } = {};
+
+      headers.forEach((h: any, i: number) => {
+        const normalized = String(h).toLowerCase().trim()
+          .normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+        if (normalized.includes("url") || normalized.includes("imagem")) headerMap["url"] = i;
+        else if (normalized.includes("categoria")) headerMap["categoria"] = i;
+        else if (normalized.includes("titulo") || normalized.includes("nome")) headerMap["titulo"] = i;
+        else if (normalized.includes("descricao")) headerMap["descricao"] = i;
+        else if (normalized.includes("preco") || normalized.includes("valor")) headerMap["preco"] = i;
+      });
+
+      const urlIndex = headerMap["url"];
+      const categoryIndex = headerMap["categoria"];
+      const titleIndex = headerMap["titulo"];
+      const descIndex = headerMap["descricao"];
+      const priceIndex = headerMap["preco"];
+
+      if (titleIndex === undefined) {
+        throw new Error("Coluna 'Título' não encontrada.");
       }
 
-      const { error: productsError } = await supabase
-        .from("produtos")
-        .insert(finalProducts);
+      let successCount = 0;
 
-      if (productsError) throw new Error(`Falha ao inserir produtos: ${productsError.message}`);
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const title = row[titleIndex] ? String(row[titleIndex]).trim() : "";
+        
+        if (!title) continue;
 
-      if (finalProductCategories.length > 0) {
-        const { error: categoriesError } = await supabase
-          .from("produtos_categorias")
-          .insert(finalProductCategories);
+        const priceValue = (priceIndex !== undefined && row[priceIndex])
+          ? parseFloat(String(row[priceIndex]).replace(",", ".").trim())
+          : 0;
 
-        if (categoriesError) throw new Error(`Falha ao inserir categorias: ${categoriesError.message}`);
+        const productData = {
+          titulo: title,
+          descricao: (descIndex !== undefined && row[descIndex]) ? String(row[descIndex]).trim() : "Sem descrição.",
+          preco: priceValue,
+        };
+
+        const { data: insertedProduct, error: productError } = await supabase
+          .from("produtos")
+          .insert(productData)
+          .select("id");
+
+        if (productError || !insertedProduct || insertedProduct.length === 0) {
+          console.error(`Erro ao inserir produto linha ${i + 2}:`, productError);
+          continue;
+        }
+
+        const newProductId = insertedProduct[0].id;
+
+        // Inserir categoria se existir
+        if (categoryIndex !== undefined && row[categoryIndex]) {
+          const categoryName = String(row[categoryIndex]).trim().toLowerCase();
+          const categoryId = categoryMap[categoryName];
+
+          if (categoryId) {
+            await supabase
+              .from("produtos_categorias")
+              .insert({
+                produto_id: newProductId,
+                categoria_id: categoryId,
+              });
+          }
+        }
+
+        // Inserir imagem se existir
+        if (urlIndex !== undefined && row[urlIndex]) {
+          const imageUrl = String(row[urlIndex]).trim();
+          await supabase
+            .from("arquivos")
+            .insert({
+              produto_id: newProductId,
+              url: imageUrl,
+              tipo: "imagem"
+            });
+        }
+
+        successCount++;
       }
 
-      toast.success(`Sucesso! ${finalProducts.length} produtos importados e categorizados.`);
-      fetchProducts(); // Recarrega os produtos
+      toast.success(`Sucesso! ${successCount} produtos importados.`);
+      fetchProducts();
 
     } catch (error) {
-      console.error("ERRO CRÍTICO NA IMPORTAÇÃO (VERIFIQUE O CONSOLE):", error);
-
-      let errorMessage = "Ocorreu um erro desconhecido durante o processamento do arquivo.";
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-
-      toast.error(`Falha na importação: ${errorMessage}`);
-
+      console.error("Erro na importação:", error);
+      toast.error(`Falha na importação: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
     } finally {
       setUploading(false);
       setFileName("");
     }
   };
-  // -------------------------------------------------------------
 
-  // --- Funções de UI ---
+  // Edição em Massa
+  const handleSelectProduct = (productId: string) => {
+    setSelectedProducts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedProducts.size === filteredProducts.length) {
+      setSelectedProducts(new Set());
+    } else {
+      setSelectedProducts(new Set(filteredProducts.map(p => p.id)));
+    }
+  };
+
+  const handleBulkEditSave = async () => {
+    if (selectedProducts.size === 0) {
+      toast.error("Selecione pelo menos um produto.");
+      return;
+    }
+
+    const updates: any = {};
+    
+    if (bulkEditData.preco) {
+      const priceValue = parseFloat(bulkEditData.preco);
+      if (!isNaN(priceValue)) {
+        updates.preco = priceValue;
+      }
+    }
+
+    if (bulkEditData.descricao) {
+      updates.descricao = bulkEditData.descricao;
+    }
+
+    const productIds = Array.from(selectedProducts);
+
+    if (Object.keys(updates).length > 0) {
+      for (const productId of productIds) {
+        await supabase
+          .from("produtos")
+          .update(updates)
+          .eq("id", productId);
+      }
+    }
+
+    if (bulkEditData.category_ids.length > 0) {
+      for (const productId of productIds) {
+        await supabase
+          .from("produtos_categorias")
+          .delete()
+          .eq("produto_id", productId);
+
+        const categoryInserts = bulkEditData.category_ids.map(catId => ({
+          produto_id: productId,
+          categoria_id: catId
+        }));
+
+        await supabase
+          .from("produtos_categorias")
+          .insert(categoryInserts);
+      }
+    }
+
+    toast.success(`${productIds.length} produtos atualizados com sucesso!`);
+    setBulkEditMode(false);
+    setSelectedProducts(new Set());
+    setBulkEditData({ preco: "", category_ids: [], descricao: "" });
+    fetchProducts();
+  };
+
+  // Funções de UI
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setFormData({
       nome: product.nome,
-      category_nome: product.category_nome,
+      category_ids: product.category_ids,
       preco: product.preco.toString(),
       imagem_url: product.imagem_url,
       descricao: product.descricao,
@@ -414,9 +516,15 @@ const Products = () => {
   };
 
   const filteredProducts = useMemo(() => {
-    // Implementar lógica de filtro/pesquisa aqui se necessário
-    return products;
-  }, [products]);
+    if (!searchTerm.trim()) return products;
+    
+    const term = searchTerm.toLowerCase();
+    return products.filter(p => 
+      p.nome.toLowerCase().includes(term) ||
+      p.descricao.toLowerCase().includes(term) ||
+      p.category_names.some(cat => cat.toLowerCase().includes(term))
+    );
+  }, [products, searchTerm]);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -431,16 +539,151 @@ const Products = () => {
           <Tabs defaultValue="list" value={activeTab} onValueChange={setActiveTab}>
             <div className="flex items-center">
               <TabsList>
+                <TabsTrigger value="list">Lista de Produtos</TabsTrigger>
                 <TabsTrigger value="add">Adicionar Produto</TabsTrigger>
                 <TabsTrigger value="bulk-upload">Upload em Massa</TabsTrigger>
-                <TabsTrigger value="list">Lista de Produtos</TabsTrigger>
               </TabsList>
-              <div className="ml-auto flex items-center gap-2">
-                {/* Botões de ação, se houver */}
-              </div>
             </div>
 
-            {/* Tab de Adicionar Produto Individual */}
+            {/* Tab de Lista de Produtos */}
+            <TabsContent value="list">
+              <Card className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold">Produtos Cadastrados ({products.length})</h2>
+                  {selectedProducts.size > 0 && (
+                    <Button 
+                      onClick={() => setBulkEditMode(!bulkEditMode)}
+                      variant={bulkEditMode ? "default" : "outline"}
+                    >
+                      {bulkEditMode ? "Cancelar Edição em Massa" : `Editar ${selectedProducts.size} Selecionados`}
+                    </Button>
+                  )}
+                </div>
+
+                <Input
+                  placeholder="Pesquisar produtos por título, descrição ou categoria..."
+                  className="mb-4"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+
+                {bulkEditMode && selectedProducts.size > 0 && (
+                  <Card className="p-4 mb-4 bg-muted">
+                    <h3 className="font-semibold mb-3">Editar em Massa ({selectedProducts.size} produtos)</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="bulk-preco">Novo Preço (deixe vazio para não alterar)</Label>
+                        <Input
+                          id="bulk-preco"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={bulkEditData.preco}
+                          onChange={(e) => setBulkEditData(prev => ({ ...prev, preco: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Categorias (deixe vazio para não alterar)</Label>
+                        <div className="border rounded-md p-2 max-h-32 overflow-y-auto">
+                          {categories.map(cat => (
+                            <div key={cat.id} className="flex items-center space-x-2 mb-1">
+                              <Checkbox
+                                checked={bulkEditData.category_ids.includes(cat.id)}
+                                onCheckedChange={() => {
+                                  setBulkEditData(prev => ({
+                                    ...prev,
+                                    category_ids: prev.category_ids.includes(cat.id)
+                                      ? prev.category_ids.filter(id => id !== cat.id)
+                                      : [...prev.category_ids, cat.id]
+                                  }));
+                                }}
+                              />
+                              <label className="text-sm">{cat.nome}</label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="bulk-descricao">Nova Descrição (deixe vazio para não alterar)</Label>
+                        <Textarea
+                          id="bulk-descricao"
+                          placeholder="Descrição..."
+                          value={bulkEditData.descricao}
+                          onChange={(e) => setBulkEditData(prev => ({ ...prev, descricao: e.target.value }))}
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                    <Button className="mt-4" onClick={handleBulkEditSave}>
+                      Aplicar Alterações
+                    </Button>
+                  </Card>
+                )}
+
+                {loadingProducts ? (
+                  <div className="flex items-center justify-center h-40">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2">Carregando produtos...</span>
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <p className="text-muted-foreground text-center">
+                    {searchTerm ? "Nenhum produto encontrado." : "Nenhum produto cadastrado."}
+                  </p>
+                ) : (
+                  <>
+                    <div className="mb-4">
+                      <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                        {selectedProducts.size === filteredProducts.length ? (
+                          <><CheckSquare className="h-4 w-4 mr-2" /> Desmarcar Todos</>
+                        ) : (
+                          <><Square className="h-4 w-4 mr-2" /> Selecionar Todos</>
+                        )}
+                      </Button>
+                    </div>
+                    <div className="space-y-4">
+                      {filteredProducts.map((product) => (
+                        <Card key={product.id} className="p-4">
+                          <div className="flex items-start gap-4">
+                            <Checkbox
+                              checked={selectedProducts.has(product.id)}
+                              onCheckedChange={() => handleSelectProduct(product.id)}
+                            />
+                            {product.imagem_url && (
+                              <img 
+                                src={product.imagem_url} 
+                                alt={product.nome} 
+                                className="w-24 h-24 object-cover rounded-md"
+                                onError={(e) => {
+                                  e.currentTarget.src = "https://via.placeholder.com/96?text=Sem+Imagem";
+                                }}
+                              />
+                            )}
+                            <div className="flex-grow">
+                              <h3 className="text-lg font-semibold">{product.nome}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {product.category_names.join(", ") || "Sem categoria"}
+                              </p>
+                              <p className="text-md font-bold mt-1">R$ {product.preco.toFixed(2)}</p>
+                              <p className="text-sm text-muted-foreground mt-2">{product.descricao}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
+                                <Edit className="h-4 w-4 mr-2" /> Editar
+                              </Button>
+                              <Button variant="destructive" size="sm" onClick={() => handleDeleteProduct(product.id, product.nome)}>
+                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </Card>
+            </TabsContent>
+
+            {/* Tab de Adicionar Produto */}
             <TabsContent value="add">
               <Card className="p-6">
                 <h2 className="text-xl font-semibold mb-4">
@@ -449,7 +692,7 @@ const Products = () => {
                 <form onSubmit={handleSaveProduct} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="nome">Título</Label>
+                      <Label htmlFor="nome">Título *</Label>
                       <Input
                         id="nome"
                         type="text"
@@ -460,60 +703,66 @@ const Products = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="category_nome">Categoria</Label>
-                      <Select
-                        value={formData.category_nome}
-                        onValueChange={handleSelectChange}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione uma categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {loadingCategories ? (
-                            <SelectItem value="loading" disabled>
-                              Carregando categorias...
-                            </SelectItem>
-                          ) : categories.length === 0 ? (
-                            <SelectItem value="no-categories" disabled>
-                              Nenhuma categoria encontrada.
-                            </SelectItem>
-                          ) : (
-                            categories.map((category) => (
-                              <SelectItem key={category.id} value={category.nome}>
-                                {category.nome}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="preco">Preço (R$)</Label>
+                      <Label htmlFor="preco">Preço *</Label>
                       <Input
                         id="preco"
                         type="number"
                         step="0.01"
-                        placeholder="29.90"
+                        placeholder="0.00"
                         value={formData.preco}
                         onChange={handleInputChange}
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="imagem_url">URL da Imagem Externa</Label>
-                      <Input
-                        id="imagem_url"
-                        type="url"
-                        placeholder="https://exemplo.com/imagem.png"
-                        value={formData.imagem_url}
-                        onChange={handleInputChange}
-                        required
-                      />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="imagem_url">URL da Imagem *</Label>
+                    <Input
+                      id="imagem_url"
+                      type="url"
+                      placeholder="https://exemplo.com/imagem.png"
+                      value={formData.imagem_url}
+                      onChange={handleInputChange}
+                      required
+                    />
+                    {formData.imagem_url && (
+                      <div className="mt-2">
+                        <img 
+                          src={formData.imagem_url} 
+                          alt="Preview" 
+                          className="w-32 h-32 object-cover rounded-md border"
+                          onError={(e) => {
+                            e.currentTarget.src = "https://via.placeholder.com/128?text=Imagem+Inválida";
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Categorias * (selecione uma ou mais)</Label>
+                    <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
+                      {loadingCategories ? (
+                        <p className="text-sm text-muted-foreground">Carregando categorias...</p>
+                      ) : categories.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nenhuma categoria disponível</p>
+                      ) : (
+                        categories.map(cat => (
+                          <div key={cat.id} className="flex items-center space-x-2 mb-2">
+                            <Checkbox
+                              checked={formData.category_ids.includes(cat.id)}
+                              onCheckedChange={() => handleCategoryToggle(cat.id)}
+                            />
+                            <label className="text-sm cursor-pointer" onClick={() => handleCategoryToggle(cat.id)}>
+                              {cat.nome}
+                            </label>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="descricao">Descrição</Label>
                     <Textarea
@@ -524,6 +773,7 @@ const Products = () => {
                       rows={5}
                     />
                   </div>
+
                   <div className="flex gap-2">
                     <Button type="submit" className="flex items-center gap-2">
                       {editingProduct ? (
@@ -548,11 +798,11 @@ const Products = () => {
                 <h2 className="text-xl font-semibold mb-4">Upload de Produtos em Massa</h2>
                 <p className="text-muted-foreground mb-4">
                   Faça o upload de um arquivo Excel (.xlsx) ou CSV para adicionar múltiplos produtos de uma vez.
-                  O arquivo deve conter as colunas: <code className="font-mono">Título</code>, <code className="font-mono">Descrição</code>, <code className="font-mono">Preço</code>, <code className="font-mono">URL da Imagem</code> e <code className="font-mono">Categoria (slug)</code>.
+                  O arquivo deve conter as colunas: <code className="font-mono">Titulo</code>, <code className="font-mono">Descricao</code>, <code className="font-mono">Preco</code>, <code className="font-mono">URL da Imagem</code> e <code className="font-mono">Categoria</code>.
                 </p>
                 <div className="flex items-center gap-2">
                   <Label htmlFor="bulk-file-upload" className="cursor-pointer">
-                    <Button asChild>
+                    <Button asChild disabled={uploading}>
                       <span className="flex items-center gap-2">
                         <Upload className="h-4 w-4" /> Selecionar Arquivo
                       </span>
@@ -571,46 +821,6 @@ const Products = () => {
                 </div>
               </Card>
             </TabsContent>
-
-            {/* Tab de Lista de Produtos */}
-            <TabsContent value="list">
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Produtos Cadastrados ({products.length})</h2>
-                <Input
-                  placeholder="Pesquisar produtos por título, descrição ou categoria..."
-                  className="mb-4"
-                // Adicionar lógica de pesquisa aqui
-                />
-                {loadingProducts ? (
-                  <div className="flex items-center justify-center h-40">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <span className="ml-2">Carregando produtos...</span>
-                  </div>
-                ) : products.length === 0 ? (
-                  <p className="text-muted-foreground text-center">Nenhum produto cadastrado. Adicione um para começar.</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredProducts.map((product) => (
-                      <Card key={product.id} className="p-4 flex flex-col">
-                        <img src={product.imagem_url} alt={product.nome} className="w-full h-48 object-cover rounded-md mb-4" />
-                        <h3 className="text-lg font-semibold mb-1">{product.nome}</h3>
-                        <p className="text-sm text-muted-foreground mb-2">{getCategoryName(product.category_nome)}</p>
-                        <p className="text-md font-bold mb-4">R$ {product.preco.toFixed(2)}</p>
-                        <p className="text-sm text-muted-foreground flex-grow">{product.descricao}</p>
-                        <div className="flex gap-2 mt-4">
-                          <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
-                            <Edit className="h-4 w-4 mr-2" /> Editar
-                          </Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleDeleteProduct(product.id, product.nome)}>
-                            <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            </TabsContent>
           </Tabs>
         </main>
       </div>
@@ -619,14 +829,3 @@ const Products = () => {
 };
 
 export default Products;
-
-
-
-
-  const simulateBulkUpload = async () => {
-    const csvContent = `Título,Descrição,Preço,URL da Imagem,Categoria\nProduto Teste 1,Descrição do Produto Teste 1,10.00,https://example.com/image1.png,Natureza\nProduto Teste 2,Descrição do Produto Teste 2,20.50,https://example.com/image2.png,Tecnologia\nProduto Teste 3,Descrição do Produto Teste 3,5.75,https://example.com/image3.png,Outros`;
-    const file = new File([csvContent], "products_import_example.csv", { type: "text/csv" });
-    const event = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>;
-    await handleBulkUpload(event);
-  };
-
