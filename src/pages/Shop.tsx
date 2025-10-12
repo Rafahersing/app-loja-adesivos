@@ -1,19 +1,19 @@
 import { useSearchParams, Link } from "react-router-dom";
-import { useState, useMemo, useEffect } from "react"; // Adicionamos 'useEffect'
+import { useState, useMemo, useEffect } from "react";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { CategoryFilter } from "@/components/shop/CategoryFilter";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
-import { fetchCategories, fetchProducts } from "@/lib/utils"; // ⭐️ Importação das novas funções
-import { Product, Category } from "@/types/product"; // ⭐️ Importação das tipagens (Próximo passo)
-import { Skeleton } from "@/components/ui/skeleton"; // Se você tiver o componente Skeleton
+import { fetchCategories, fetchProducts } from "@/lib/utils";
+import { Product, Category } from "@/types/product";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedCategory = searchParams.get("category") || "all";
   const searchQuery = searchParams.get("search") || "";
 
-  // ⭐️ Novo estado para armazenar dados reais do Supabase
+  // Estado para armazenar dados reais do Supabase
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,7 +22,7 @@ const Shop = () => {
   const { addToCart, toggleFavorite, isFavorite } = useStore();
 
   // --------------------------------------------------
-  // ⭐️ Lógica de Carregamento de Dados (useEffect)
+  // Lógica de Carregamento de Dados (useEffect)
   // --------------------------------------------------
   useEffect(() => {
     async function loadShopData() {
@@ -61,35 +61,37 @@ const Shop = () => {
     setSearchParams(params);
   };
 
-  // ⭐️ Atualiza o useMemo para usar 'products' em vez de MOCK_PRODUCTS
+  // Atualiza o useMemo para usar 'products' e filtrar por category_id (UUID string)
   const filteredProducts = useMemo(() => {
     let filtered = products;
 
     // Filter by category
     if (selectedCategory !== "all") {
-      // Filtrar por ID da categoria. O "category" em useSearchParams é o ID da categoria
-      filtered = filtered.filter((p) => p.category_id.toString() === selectedCategory); 
+      // Filtrar por ID da categoria. O 'selectedCategory' é o UUID da categoria
+      // Garantimos que a comparação é feita entre strings (UUIDs)
+      filtered = filtered.filter((p) => p.category_id === selectedCategory); 
     }
 
     // Filter by search query
     if (searchQuery) {
       filtered = filtered.filter((p) =>
-        p.nome.toLowerCase().includes(searchQuery.toLowerCase()) // ⭐️ Usa 'nome' em vez de 'title'
+        p.nome.toLowerCase().includes(searchQuery.toLowerCase()) // Usa 'nome' em vez de 'title'
       );
     }
 
     return filtered;
   }, [products, selectedCategory, searchQuery]); // Depende do estado 'products'
 
-  const handleAddToCart = (product: Product) => { // ⭐️ Tipagem ajustada para Product
+  const handleAddToCart = (product: Product) => { // Tipagem ajustada para Product
     addToCart(product);
     toast.success("Produto adicionado ao carrinho!");
   };
 
-  const handleToggleFavorite = (productId: number) => { // ⭐️ Tipagem ajustada para number (assumindo id é number)
-    toggleFavorite(productId.toString()); // Mantém a função de store, mas converte para string se o store usar string
+  // ⭐️ Ajuste: O ID do produto é uma string (UUID)
+  const handleToggleFavorite = (productId: string) => { 
+    toggleFavorite(productId); 
     toast.success(
-      isFavorite(productId.toString())
+      isFavorite(productId)
         ? "Removido dos favoritos"
         : "Adicionado aos favoritos!"
     );
@@ -103,16 +105,19 @@ const Shop = () => {
       <div className="container mx-auto px-4 py-8 text-center text-red-500">
         <h2>Erro ao carregar dados</h2>
         <p>{error}</p>
+        <p className="mt-4 text-sm text-gray-500">
+            Verifique as **Policies de RLS** das tabelas `produtos` e `categorias` no Supabase.
+        </p>
       </div>
     );
   }
 
-  // Use um loading mais sofisticado se o componente Skeleton estiver disponível
+  // Lógica de Skeleton (Loading)
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold mb-8">Explorar Imagens</h1>
-        <div className="flex gap-8">
+        <div className="flex flex-col gap-8 md:flex-row">
           {/* Skeleton para o filtro de categoria */}
           <div className="w-full md:w-1/4">
             <Skeleton className="h-40 w-full" />
@@ -149,7 +154,7 @@ const Shop = () => {
         </h2>
         {/* ⭐️ Passamos a lista de categorias e o handler para o CategoryFilter */}
         <CategoryFilter
-          categories={categories} // ⭐️ Novo prop
+          categories={categories} // ⭐️ ESSENCIAL: Passa as categorias para o filtro
           selectedCategory={selectedCategory}
           onCategoryChange={handleCategoryChange}
         />
@@ -162,9 +167,10 @@ const Shop = () => {
             <ProductCard
               key={product.id}
               product={product}
+              categories={categories} // ⭐️ ESSENCIAL: Passa as categorias para o Card
               onAddToCart={() => handleAddToCart(product)}
-              onToggleFavorite={() => handleToggleFavorite(product.id)}
-              isFavorite={isFavorite(product.id.toString())} // ⭐️ Converte id para string
+              onToggleFavorite={() => handleToggleFavorite(product.id)} // Passa o UUID (string)
+              isFavorite={isFavorite(product.id.toString())}
             />
           ))}
         </div>
