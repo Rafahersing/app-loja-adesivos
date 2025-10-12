@@ -80,6 +80,9 @@ const Products = () => {
   const fetchProducts = async () => {
     setLoadingProducts(true);
 
+    const fetchProducts = async () => {
+    setLoadingProducts(true);
+
     const { data, error } = await supabase
       .from("produtos")
       .select(`
@@ -87,7 +90,7 @@ const Products = () => {
         titulo, 
         preco, 
         descricao,
-        arquivos(url),
+        url_imagem, // <--- NOVO CAMPO SELECIONADO DIRETAMENTE
         produtos_categorias(categoria_id)
       `)
       .order("titulo", { ascending: true });
@@ -104,13 +107,15 @@ const Products = () => {
       const mappedProducts = data.map((p: any) => {
         const categoryIds = p.produtos_categorias?.map((pc: any) => pc.categoria_id) || [];
         const categoryNames = categoryIds.map((id: string) => categoryIdToName[id] || "Desconhecida");
-        const imageUrl = p.arquivos && p.arquivos.length > 0 ? p.arquivos[0].url : "";
+        
+        // CORREÇÃO da lógica de imagem: a URL está diretamente na coluna 'url_imagem'
+        const imageUrl = p.url_imagem || ""; 
 
         return {
           id: p.id,
           nome: p.titulo,
           preco: parseFloat(p.preco) || 0,
-          imagem_url: imageUrl,
+          imagem_url: imageUrl, // <--- Usando o novo valor 'imageUrl'
           descricao: p.descricao || "",
           category_ids: categoryIds,
           category_names: categoryNames,
@@ -120,7 +125,6 @@ const Products = () => {
     }
     setLoadingProducts(false);
   };
-
   useEffect(() => {
     fetchCategories();
   }, []);
