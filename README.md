@@ -1,73 +1,95 @@
-# Welcome to your Lovable project
+# 🛍️ Projeto E-commerce de PNGs
 
-## Project info
+## 📌 Visão geral
+Este é um e-commerce para venda de imagens PNG com entregas digitais.  
+O usuário pode navegar no shop sem login, mas para comprar precisa preencher o cadastro completo.  
+O app inclui painel admin para gerenciar produtos, categorias e pedidos.
 
-**URL**: https://lovable.dev/projects/3b014e45-fab0-4bc3-9afb-aeaa79af0c6f
+- 🖥️ **Frontend:** React + Vite + Tailwind  
+- 🗃️ **Backend:** Supabase (autenticação, banco de dados e storage)  
+- ☁️ **Hospedagem:** Vercel  
+- 🧭 **Gerenciamento de estado:** Zustand  
+- 🧩 **UI:** Shadcn UI + Tailwind Components  
+- 🧑‍💼 **Admin:** painel separado para gerenciar produtos e pedidos.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 🧭 Fluxos principais
 
-**Use Lovable**
+- ✅ **Público:** Visualiza produtos e categorias (sem login)  
+- 👤 **Usuário autenticado:** pode adicionar produtos ao carrinho, comprar e baixar imagens.  
+- 🧑‍💼 **Admin:** gerencia produtos, categorias e usuários.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/3b014e45-fab0-4bc3-9afb-aeaa79af0c6f) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## 📂 Estrutura de Pastas
 
-**Use your preferred IDE**
+src/
+├── components/ # Componentes reutilizáveis
+│ ├── admin/ # Componentes do painel admin
+│ ├── layout/ # Header, Footer, Layout base
+│ ├── shop/ # Loja (filtros, cards etc.)
+│ └── ui/ # Shadcn UI components
+├── hooks/ # Hooks personalizados (ex: use-toast, use-mobile)
+├── lib/ # Conexão Supabase, mockData, utils
+├── pages/ # Páginas do app
+│ ├── admin/ # Dashboard e páginas administrativas
+│ ├── Account.tsx
+│ ├── Auth.tsx
+│ ├── Cart.tsx
+│ ├── Favorites.tsx
+│ ├── Home.tsx
+│ ├── NotFound.tsx
+│ ├── Product.tsx
+│ └── Shop.tsx
+├── types/ # Tipagem TypeScript (ex: product.ts)
+├── App.tsx
+├── main.tsx
+└── index.css
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## 🧰 Dependências principais
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- `@supabase/supabase-js` — comunicação com o Supabase  
+- `zustand` — gerenciamento de estado global  
+- `tailwindcss` + `shadcn/ui` — UI  
+- `react-router-dom` — rotas  
+- `vite` — bundler
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+## 🧠 Instruções para IA (Lovable / Bolt)
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+> ⚡ Objetivo: Refatorar, estabilizar e conectar UI ao backend (Supabase)
 
-**Edit a file directly in GitHub**
+- Centralizar chamadas ao Supabase em `src/lib/supabaseClient.ts`.
+- Garantir que botões de ações (`adicionar ao carrinho`, `favoritar`, `finalizar pedido`) estão conectados ao Supabase.
+- Padronizar componentes com TypeScript.
+- Melhorar estrutura de pastas caso necessário.
+- Corrigir hooks quebrados (ex: use-toast duplicado).
+- Garantir que rotas e navegação funcionam corretamente (admin e público).
+- Ajustar UI desalinhada usando Tailwind + componentes Shadcn.
+- Garantir que `is_admin` controla acesso ao painel admin.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## 🧪 Fluxos a testar após refatoração
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- [ ] Login e criação de perfil no Supabase
+- [ ] Adicionar/remover itens do carrinho
+- [ ] Finalizar pedido com perfil completo
+- [ ] Fazer download do produto comprado
+- [ ] Painel admin funcionando
+- [ ] UI responsiva em mobile e desktop
 
-## What technologies are used for this project?
+---
 
-This project is built with:
+## 🧑‍💼 Perfis de usuário
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- Visitante: navega pela loja
+- Usuário autenticado: compra e baixa produtos
+- Admin: gerencia produtos, categorias e pedidos (`is_admin = true` no Supabase)
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/3b014e45-fab0-4bc3-9afb-aeaa79af0c6f) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
