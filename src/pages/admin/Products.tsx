@@ -61,7 +61,7 @@ const Products = () => {
 
   // --- Funções de Carregamento de Dados ---
 
-  // 1. Buscar Categorias (CORRIGIDO: Função única e correta)
+  // 1. Buscar Categorias (OK)
   const fetchCategories = async () => {
     setLoadingCategories(true);
     const { data, error } = await supabase
@@ -78,18 +78,19 @@ const Products = () => {
     setLoadingCategories(false);
   };
     
-  // 2. Buscar Produtos Reais (CORRIGIDO: Função única e correta)
+  // 2. Buscar Produtos Reais (CORRIGIDO: 'preço' para 'preco' no select e no mapeamento)
   const fetchProducts = async () => {
     setLoadingProducts(true);
     
-    // Select limpo, puxando a relação com produtos_categorias
+    // CORREÇÃO: Select deve usar 'preco' (sem cedilha) conforme o DB
     const { data, error } = await supabase
       .from('produtos')
-      .select(`id, nome, preço, imagem_url, descricao, produtos_categorias!inner(category_id)`)
+      .select(`id, nome, preco, imagem_url, descricao, produtos_categorias!inner(category_id)`)
       .order('id', { ascending: false });
 
     if (error) {
         console.error('Erro ao carregar produtos:', error);
+        // Toast de erro de RLS (SELECT)
         toast.error('Erro ao carregar lista de produtos. Verifique as Policies de RLS (SELECT) no Supabase.'); 
     } else if (data) {
         // Mapeia a ID da Categoria para o SLUG da Categoria (usando o state categories)
@@ -106,9 +107,9 @@ const Products = () => {
                 id: p.id,
                 // Mapeia as chaves do DB para a interface Product
                 nome: p.nome,
-                price: p.preço, // Mapeado de 'preço' do DB
-                image_url: p.imagem_url, // Mapeado de 'imagem_url' do DB
-                descricao: p.descricao, // Mapeado de 'descricao' do DB
+                price: p.preco, // CORRIGIDO: Mapeado de 'preco' (sem cedilha) do DB
+                image_url: p.imagem_url, 
+                descricao: p.descricao, 
                 // Converte o ID para o SLUG
                 category_slug: categoryIdToSlug[categoryId] || 'sem-categoria'
             };
@@ -166,8 +167,8 @@ const Products = () => {
         return;
     }
 
-    // Usa nomes de colunas do Supabase (nome, descricao, preço, imagem_url)
-    const productData = { nome, imagem_url: image_url, descricao, preço: priceValue };
+    // CORREÇÃO CRÍTICA: As chaves devem ser 'descricao' e 'preco' (sem cedilha) conforme o DB
+    const productData = { nome, imagem_url: image_url, descricao, preco: priceValue };
     let error = null;
 
     if (editingProduct) {
@@ -216,6 +217,7 @@ const Products = () => {
     
     if (error) {
         console.error('Erro de Supabase (Salvar Produto):', error);
+        // O erro de schema (missing column) deve ser corrigido agora.
         toast.error(`Falha ao salvar produto: ${error.message}`);
     } else {
         setEditingProduct(null);
@@ -266,13 +268,14 @@ const Products = () => {
       
       // Mapeamento tolerante a diferentes nomes/casos
       headers.forEach((h, i) => {
-          // Normalize (remove acentos e caracteres, mantém espaços para checagem)
+          // Normalize (remove acentos e caracteres)
           const normalized = h.toLowerCase().trim()
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9\s]/g, ''); 
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
             
+          // CORREÇÃO 2.1: Mapeamento de Cabeçalho mais robusto para 'Título'
           if (normalized.includes('url') || normalized.includes('imagem')) headerMap['url'] = i;
           else if (normalized.includes('categoria')) headerMap['categoria'] = i;
+          // Verifica a palavra exata 'título' (sem acento) ou 'nome'
           else if (normalized.includes('titulo') || normalized.includes('nome')) headerMap['titulo'] = i;
           else if (normalized.includes('descricao')) headerMap['descricao'] = i;
           else if (normalized.includes('preco') || normalized.includes('valor')) headerMap['preco'] = i;
@@ -286,6 +289,7 @@ const Products = () => {
       
       // Verificação Mínima
       if (titleIndex === undefined) {
+           // Mensagem de erro de coluna obrigatória
            throw new Error("Colunas obrigatórias (Título) não encontradas. Verifique se o cabeçalho contém 'Título' ou 'Nome'.");
       }
       
@@ -311,11 +315,11 @@ const Products = () => {
 
           const product = {
               id: tempProductId, 
-              // Usa nomes de colunas do Supabase
+              // Usa nomes de colunas do Supabase: nome, descricao, preco, imagem_url
               imagem_url: (urlIndex !== undefined && row[urlIndex]) ? row[urlIndex].trim() : null,
               nome: title,
               descricao: (descIndex !== undefined && row[descIndex]) ? row[descIndex].trim() : 'Sem descrição.',
-              preço: parseFloat(priceValue) || 0, 
+              preco: parseFloat(priceValue) || 0,  // CORRIGIDO: Usa 'preco' (sem cedilha)
           };
 
           finalProducts.push(product);
@@ -405,6 +409,7 @@ const Products = () => {
             errorMessage = error.message;
         }
         
+        // Mensagem para erros de coluna ou RLS
         toast.error(`Falha na importação: ${errorMessage}`);
         
     } finally {
