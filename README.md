@@ -60,7 +60,7 @@ src/
 
 ---
 
-## 🧠 Instruções para IA (Lovable / Bolt)
+## 🧠 Instruções para IA 
 
 > ⚡ Objetivo: Refatorar, estabilizar e conectar UI ao backend (Supabase)
 
