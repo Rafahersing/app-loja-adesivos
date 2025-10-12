@@ -218,6 +218,20 @@ const Products = () => {
 
     setLoadingProducts(true);
 
+    // Primeiro, excluir as associações na tabela produtos_categorias
+    const { error: catError } = await supabase
+      .from("produtos_categorias")
+      .delete()
+      .eq("produto_id", productId);
+
+    if (catError) {
+      console.error("Erro ao excluir associações de categoria:", catError);
+      toast.error(`Falha ao excluir associações: ${catError.message}`);
+      setLoadingProducts(false);
+      return;
+    }
+
+    // Depois, excluir o produto
     const { error } = await supabase
       .from("produtos")
       .delete()
