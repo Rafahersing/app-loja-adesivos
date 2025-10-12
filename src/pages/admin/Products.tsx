@@ -75,8 +75,8 @@ const Products = () => {
 
     const { data, error } = await supabase
       .from("produtos")
-      .select(`id, nome, preco, imagem_url, descricao, produtos_categorias!inner(categoria_id)`)
-      .order("nome", { ascending: false });
+      .select(`id, titulo, preco, descricao, produtos_categorias!inner(categoria_id)`)
+      .order("titulo", { ascending: false });
 
     if (error) {
       console.error("Erro ao carregar produtos:", error);
@@ -92,9 +92,9 @@ const Products = () => {
 
         return {
           id: p.id,
-          nome: p.nome,
+          nome: p.titulo,
           preco: p.preco,
-          imagem_url: p.imagem_url,
+          imagem_url: "", // Não há coluna imagem_url na tabela produtos
           descricao: p.descricao,
           category_nome: categoryIdToSlug[categoryId] || "sem-categoria"
         };
@@ -152,8 +152,7 @@ const Products = () => {
     }
 
     const productData = {
-      nome,
-      imagem_url,
+      titulo: nome,
       descricao,
       preco: priceValue
     };
@@ -287,8 +286,7 @@ const Products = () => {
 
       const product = {
         id: tempProductId,
-        imagem_url: (urlIndex !== undefined && row[urlIndex]) ? row[urlIndex].trim() : null,
-        nome: title,
+        titulo: title,
         descricao: (descIndex !== undefined && row[descIndex]) ? row[descIndex].trim() : "Sem descrição.",
         preco: parseFloat(priceValue) || 0,
       };
