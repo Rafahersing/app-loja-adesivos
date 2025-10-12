@@ -13,8 +13,8 @@ import { supabase, slugify } from '@/lib/utils';
 
 interface Category {
   id: string; 
-  name: string;
-  slug: string;
+  nome: string;
+  descricao?: string;
 }
 
 const AdminCategoriesPage: React.FC = () => {
@@ -27,14 +27,12 @@ const AdminCategoriesPage: React.FC = () => {
   // ⭐️ NOVO ESTADO: Termo de pesquisa ⭐️
   const [searchTerm, setSearchTerm] = useState("");
 
-
-  // Função para buscar (mantida)
   const fetchCategories = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('categorias')
-      .select('id, name, slug')
-      .order('name', { ascending: true });
+      .select('id, nome, descricao')
+      .order('nome', { ascending: true });
 
     if (error) {
       console.error('ERRO SUPABASE:', error);
@@ -45,11 +43,11 @@ const AdminCategoriesPage: React.FC = () => {
     }
     setLoading(false);
   };
-
+  
   useEffect(() => {
     fetchCategories();
   }, []);
-  
+
   // ⭐️ NOVO: Lógica de Filtragem (Pesquisa no Frontend) ⭐️
   const filteredCategories = useMemo(() => {
     if (!searchTerm.trim()) {
@@ -59,15 +57,15 @@ const AdminCategoriesPage: React.FC = () => {
     const lowerCaseSearch = searchTerm.toLowerCase().trim();
     
     return categories.filter(category => 
-      category.name.toLowerCase().includes(lowerCaseSearch) ||
-      category.slug.toLowerCase().includes(lowerCaseSearch)
+      category.nome.toLowerCase().includes(lowerCaseSearch) ||
+      (category.descricao && category.descricao.toLowerCase().includes(lowerCaseSearch))
     );
   }, [categories, searchTerm]); // Recalcula sempre que a lista ou o termo mudar
 
 
   const handleEditCategory = (category: Category) => {
     setEditingCategory(category);
-    setNewCategoryName(category.name);
+    setNewCategoryName(category.nome);
   };
 
   const handleSaveCategory = async (e: React.FormEvent) => {
@@ -80,15 +78,7 @@ const AdminCategoriesPage: React.FC = () => {
       return;
     }
     
-    const slug = slugify(name);
-    
-    const isSlugDuplicate = categories.some(
-        c => c.slug === slug && c.id !== editingCategory?.id
-    );
-    if (isSlugDuplicate) {
-        toast.error(`O slug "${slug}" já existe em outra categoria.`);
-        return;
-    }
+
 
     setIsSubmitting(true);
     let error = null;
@@ -97,9 +87,8 @@ const AdminCategoriesPage: React.FC = () => {
         // Lógica de EDIÇÃO (UPDATE)
         ({ error } = await supabase
             .from('categorias')
-            .update({ name: name, slug: slug })
+            .update({ nome: name })
             .eq('id', editingCategory.id));
-        
         if (!error) {
             toast.success(`Categoria "${name}" atualizada com sucesso!`);
             setEditingCategory(null);
@@ -108,7 +97,7 @@ const AdminCategoriesPage: React.FC = () => {
         // Lógica de ADIÇÃO (INSERT)
         ({ error } = await supabase
             .from('categorias')
-            .insert({ name: name, slug: slug }));
+            .insert({ nome: name }));
 
         if (!error) {
             toast.success(`Categoria "${name}" adicionada com sucesso!`);
@@ -164,7 +153,7 @@ const AdminCategoriesPage: React.FC = () => {
       {/* --- Formulário de Adição/Edição --- */}
       <Card className="p-6 space-y-6">
           <h3 className="text-xl font-semibold mb-4">
-              {editingCategory ? `Editando: ${editingCategory.name}` : 'Adicionar Nova Categoria'}
+              {editingCategory ? `Editando: ${editingCategory.nome}` : 'Adicionar Nova Categoria'}
           </h3>
           <form onSubmit={handleSaveCategory} className="flex gap-4">
               <Input
@@ -208,12 +197,7 @@ const AdminCategoriesPage: React.FC = () => {
                   )}
               </div>
           </form>
-          {/* Pré-visualização do Slug */}
-          {newCategoryName.trim() && (
-              <p className="text-sm text-muted-foreground mt-2">
-                  Slug: **{slugify(newCategoryName)}**
-              </p>
-          )}
+
       </Card>
 
       {/* --- Lista de Categorias --- */}
@@ -260,7 +244,7 @@ const AdminCategoriesPage: React.FC = () => {
                       className="flex items-center justify-between p-3 border rounded-lg bg-secondary/10"
                   >
                       <p className="font-medium">
-                          {category.name} <span className="text-sm text-muted-foreground">({category.slug})</span>
+                          {category.nome} {category.descricao && <span className="text-sm text-muted-foreground">({category.descricao})</span>}
                       </p>
                       <div className="flex gap-2">
                           <Button
@@ -275,7 +259,7 @@ const AdminCategoriesPage: React.FC = () => {
                           <Button
                               variant="destructive"
                               size="icon"
-                              onClick={() => handleDeleteCategory(category.id, category.name)}
+                              onClick={() => handleDeleteCategory(category.id, category.nome)}
                               disabled={loading || isSubmitting}
                           >
                               <Trash2 className="h-4 w-4" />
@@ -291,3 +275,4 @@ const AdminCategoriesPage: React.FC = () => {
 };
 
 export default AdminCategoriesPage;
+

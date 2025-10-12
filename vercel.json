@@ -1,4 +1,6 @@
 {
+  "outputDirectory": "dist",
+  "public": true,
   "rewrites": [
     {
       "source": "/(.*)",

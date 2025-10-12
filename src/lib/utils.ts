@@ -44,20 +44,15 @@ export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as s
 export async function fetchCategories() {
     const { data, error } = await supabase
         .from('categorias') // Tabela de categorias
-        // ⭐️ Ajuste: Buscando as colunas reais do DB ('name' e 'slug')
-        .select('id, name, slug') 
-        .order('name', { ascending: true }); // Ordena por nome
+        .select('id, nome, descricao') 
+        .order('nome', { ascending: true }); // Ordena por nome
 
     if (error) {
         console.error('Erro ao buscar categorias:', error);
         return [];
     }
-    // ⭐️ Mapeia os dados para garantir que os campos esperados no frontend (como 'nome') existam
-    // Se o seu frontend espera `nome`, ele precisará ser ajustado para usar `name`.
-    return data.map(c => ({ 
-        ...c, 
-        nome: c.name // Mapeamento para compatibilidade com o frontend
-    }));
+    // Retorna os dados diretamente, pois o Products.tsx espera 'name' e 'slug'
+    return data;
 }
 
 /**
@@ -104,7 +99,7 @@ export const slugify = (text: string): string => {
         .toString()
         .toLowerCase()
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[̀-ͯ]/g, '')
         .trim()
         .replace(/\s+/g, '-')
         .replace(/[^\w\-]+/g, '')
