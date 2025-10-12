@@ -2,20 +2,31 @@ import { Link } from "react-router-dom";
 import { Heart, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Product } from "@/types/product";
+import { Product, Category } from "@/types/product"; // ⭐️ Adicionamos Category
 import { Badge } from "@/components/ui/badge";
 
 interface ProductCardProps {
   product: Product;
   onAddToCart: (product: Product) => void;
-  onToggleFavorite: (productId: string) => void;
+  // ⭐️ O ID do produto agora é um number no Product Type, mas o store usa string
+  onToggleFavorite: (productId: number) => void; 
   isFavorite: boolean;
+  // Opcional: Se você quiser exibir o nome da categoria na badge, pode passar a lista ou a categoria
+  categories?: Category[]; 
 }
 
-export const ProductCard = ({ product, onAddToCart, onToggleFavorite, isFavorite }: ProductCardProps) => {
+export const ProductCard = ({ product, onAddToCart, onToggleFavorite, isFavorite, categories = [] }: ProductCardProps) => {
+  
+  // ⭐️ Lógica para encontrar o nome da categoria a partir do ID
+  const categoryName = categories.find(c => c.id === product.category_id)?.nome || "Geral";
+  
+  // ⭐️ Converte o ID numérico para string, se necessário, para rotas ou funções que esperam string
+  const productIdString = product.id.toString(); 
+
   return (
     <Card className="group overflow-hidden border transition-all hover:shadow-lg hover:border-primary/20">
-      <Link to={`/product/${product.id}`} className="block">
+      {/* ⭐️ Usamos productIdString na rota */}
+      <Link to={`/product/${productIdString}`} className="block">
         <div className="relative aspect-square overflow-hidden bg-muted">
           {/* Watermark overlay */}
           <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
@@ -25,8 +36,10 @@ export const ProductCard = ({ product, onAddToCart, onToggleFavorite, isFavorite
           </div>
           
           <img
-            src={product.imageUrl}
-            alt={product.title}
+            // ⭐️ Usamos 'imagem_url' em vez de 'imageUrl'
+            src={product.imagem_url} 
+            // ⭐️ Usamos 'nome' em vez de 'title'
+            alt={product.nome} 
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           
@@ -38,18 +51,21 @@ export const ProductCard = ({ product, onAddToCart, onToggleFavorite, isFavorite
       <div className="p-4 space-y-3">
         <div className="space-y-2">
           <Badge variant="secondary" className="text-xs">
-            {product.category}
+            {/* ⭐️ Usamos categoryName encontrado acima */}
+            {categoryName} 
           </Badge>
-          <Link to={`/product/${product.id}`}>
+          <Link to={`/product/${productIdString}`}>
+            {/* ⭐️ Usamos 'nome' em vez de 'title' */}
             <h3 className="font-semibold line-clamp-1 hover:text-primary transition-colors">
-              {product.title}
+              {product.nome} 
             </h3>
           </Link>
         </div>
 
         <div className="flex items-center justify-between">
           <span className="text-2xl font-bold text-primary">
-            R$ {product.price.toFixed(2)}
+            {/* ⭐️ Usamos 'preco' em vez de 'price' */}
+            R$ {product.preco.toFixed(2)} 
           </span>
 
           <div className="flex gap-2">
@@ -58,7 +74,8 @@ export const ProductCard = ({ product, onAddToCart, onToggleFavorite, isFavorite
               variant="outline"
               onClick={(e) => {
                 e.preventDefault();
-                onToggleFavorite(product.id);
+                // ⭐️ Passamos o ID numérico do produto
+                onToggleFavorite(product.id); 
               }}
               className={isFavorite ? "text-red-500 border-red-500" : ""}
             >
