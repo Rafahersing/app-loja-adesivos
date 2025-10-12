@@ -33,6 +33,44 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Cria e exporta o cliente Supabase
 export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as string);
 
+// ----------------------------------------------------------------------
+// Funções de Busca de Dados (Shop)
+// ----------------------------------------------------------------------
+
+/**
+ * Busca todas as categorias do Supabase.
+ * @returns Um array de objetos de categoria ou um array vazio em caso de erro.
+ */
+export async function fetchCategories() {
+    const { data, error } = await supabase
+        .from('categorias') // <--- VERIFIQUE E ADAPTE O NOME DA SUA TABELA
+        .select('*');
+
+    if (error) {
+        console.error('Erro ao buscar categorias:', error);
+        return [];
+    }
+    return data;
+}
+
+/**
+ * Busca todos os produtos do Supabase.
+ * Nota: Adapte o .select() para as colunas que você cadastrou.
+ * @returns Um array de objetos de produto ou um array vazio em caso de erro.
+ */
+export async function fetchProducts() {
+    const { data, error } = await supabase
+        .from('produtos') // <--- VERIFIQUE E ADAPTE O NOME DA SUA TABELA
+        .select('id, nome, preco, imagem_url, category_id'); // ADAPTE AS COLUNAS AQUI!
+
+    if (error) {
+        console.error('Erro ao buscar produtos:', error);
+        return [];
+    }
+    return data;
+}
+
+
 /**
  * Converte uma string em um formato URL-friendly (slug).
  */
