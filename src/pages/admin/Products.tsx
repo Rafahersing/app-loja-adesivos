@@ -24,7 +24,8 @@ interface Category {
 interface Product {
   id: string;
   nome: string;
-  imagem_url: string;
+  // A URL da imagem agora é um campo direto no produto
+  imagem_url: string; 
   category_ids: string[];
   category_names: string[];
   preco: number;
@@ -36,7 +37,8 @@ interface FormData {
   nome: string;
   category_ids: string[];
   preco: string;
-  imagem_url: string;
+  // Nova coluna para o URL da imagem (do R2)
+  imagem_url: string; 
   descricao: string;
 }
 
@@ -76,13 +78,11 @@ const Products = () => {
     setLoadingCategories(false);
   };
 
-  // Buscar Produtos com imagens da tabela arquivos
+  // Buscar Produtos (Ajustado para usar url_imagem)
   const fetchProducts = async () => {
     setLoadingProducts(true);
 
-    const fetchProducts = async () => {
-    setLoadingProducts(true);
-
+    // CÓDIGO CORRIGIDO: Selecionando 'url_imagem' diretamente, removendo 'arquivos(url)'
     const { data, error } = await supabase
       .from("produtos")
       .select(`
@@ -90,7 +90,7 @@ const Products = () => {
         titulo, 
         preco, 
         descricao,
-        url_imagem, // <--- NOVO CAMPO SELECIONADO DIRETAMENTE
+        url_imagem, 
         produtos_categorias(categoria_id)
       `)
       .order("titulo", { ascending: true });
@@ -108,14 +108,14 @@ const Products = () => {
         const categoryIds = p.produtos_categorias?.map((pc: any) => pc.categoria_id) || [];
         const categoryNames = categoryIds.map((id: string) => categoryIdToName[id] || "Desconhecida");
         
-        // CORREÇÃO da lógica de imagem: a URL está diretamente na coluna 'url_imagem'
+        // CORREÇÃO da lógica de imagem: a URL está diretamente no campo url_imagem
         const imageUrl = p.url_imagem || ""; 
 
         return {
           id: p.id,
           nome: p.titulo,
           preco: parseFloat(p.preco) || 0,
-          imagem_url: imageUrl, // <--- Usando o novo valor 'imageUrl'
+          imagem_url: imageUrl, 
           descricao: p.descricao || "",
           category_ids: categoryIds,
           category_names: categoryNames,
@@ -125,6 +125,7 @@ const Products = () => {
     }
     setLoadingProducts(false);
   };
+  
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -151,7 +152,7 @@ const Products = () => {
     });
   };
 
-  // Salvar Produto
+  // Salvar Produto (INSERÇÃO E ATUALIZAÇÃO CORRIGIDAS)
   const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -173,15 +174,18 @@ const Products = () => {
       return;
     }
 
+    // ProductData agora inclui a URL da imagem
     const productData = {
       titulo: nome,
       descricao,
-      preco: priceValue
+      preco: priceValue,
+      url_imagem: imagem_url, // <--- CAMPO DE IMAGEM INCLUÍDO AQUI
     };
 
     let productId = editingProduct?.id;
 
     if (editingProduct) {
+      // 1. ATUALIZA PRODUTO
       const { error } = await supabase
         .from("produtos")
         .update(productData)
@@ -193,22 +197,18 @@ const Products = () => {
         return;
       }
 
-      // Deletar categorias antigas
+      // 2. Deletar categorias antigas
       await supabase
         .from("produtos_categorias")
         .delete()
         .eq("produto_id", editingProduct.id);
 
-      // Deletar arquivos antigos
-      await supabase
-        .from("arquivos")
-        .delete()
-        .eq("produto_id", editingProduct.id);
-
+      // 3. REMOVIDA A CHAMADA PARA EXCLUIR ARQUIVOS ANTIGOS (Não há mais a tabela arquivos)
     } else {
+      // 1. INSERE NOVO PRODUTO
       const { data: insertedProduct, error: insertError } = await supabase
         .from("produtos")
-        .insert(productData)
+        .insert(productData) // <--- INSERT CORRIGIDO
         .select("id");
 
       if (insertError || !insertedProduct || insertedProduct.length === 0) {
@@ -220,7 +220,7 @@ const Products = () => {
       productId = insertedProduct[0].id;
     }
 
-    // Inserir novas categorias
+    // 2. Inserir novas categorias
     const categoryInserts = category_ids.map(catId => ({
       produto_id: productId,
       categoria_id: catId
@@ -236,21 +236,8 @@ const Products = () => {
       return;
     }
 
-    // Inserir imagem na tabela arquivos
-    const { error: fileError } = await supabase
-      .from("arquivos")
-      .insert({
-        produto_id: productId,
-        url: imagem_url,
-        tipo: "imagem"
-      });
-
-    if (fileError) {
-      console.error("Erro ao inserir arquivo:", fileError);
-      toast.error(`Falha ao salvar imagem: ${fileError.message}`);
-      return;
-    }
-
+    // 3. REMOVIDA A CHAMADA PARA INSERIR IMAGEM NA TABELA ARQUIVOS
+    
     toast.success(editingProduct ? `Produto atualizado com sucesso!` : `Novo produto adicionado com sucesso!`);
     setEditingProduct(null);
     setFormData(initialFormData);
@@ -258,7 +245,7 @@ const Products = () => {
     fetchProducts();
   };
 
-  // Deletar Produto
+  // Deletar Produto (AJUSTADO)
   const handleDeleteProduct = async (productId: string, productName: string) => {
     if (!window.confirm(`Tem certeza que deseja excluir o produto: "${productName}"?`)) {
       return;
@@ -266,19 +253,15 @@ const Products = () => {
 
     setLoadingProducts(true);
 
-    // Excluir associações de categoria
+    // 1. Excluir associações de categoria
     await supabase
       .from("produtos_categorias")
       .delete()
       .eq("produto_id", productId);
 
-    // Excluir arquivos
-    await supabase
-      .from("arquivos")
-      .delete()
-      .eq("produto_id", productId);
+    // 2. REMOVIDA A CHAMADA PARA EXCLUIR ARQUIVOS (Não há mais a tabela arquivos)
 
-    // Excluir produto
+    // 3. Excluir produto
     const { error } = await supabase
       .from("produtos")
       .delete()
@@ -294,7 +277,7 @@ const Products = () => {
     setLoadingProducts(false);
   };
 
-  // Upload em Massa
+  // Upload em Massa (AJUSTADO)
   const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
@@ -335,6 +318,7 @@ const Products = () => {
         const normalized = String(h).toLowerCase().trim()
           .normalize("NFD").replace(/[̀-ͯ]/g, "");
 
+        // AJUSTE: Mapeando a coluna de URL para o campo 'url'
         if (normalized.includes("url") || normalized.includes("imagem")) headerMap["url"] = i;
         else if (normalized.includes("categoria")) headerMap["categoria"] = i;
         else if (normalized.includes("titulo") || normalized.includes("nome")) headerMap["titulo"] = i;
@@ -363,16 +347,20 @@ const Products = () => {
         const priceValue = (priceIndex !== undefined && row[priceIndex])
           ? parseFloat(String(row[priceIndex]).replace(",", ".").trim())
           : 0;
+        
+        const imageUrl = (urlIndex !== undefined && row[urlIndex]) ? String(row[urlIndex]).trim() : null; // Capturando o URL
 
+        // productData agora inclui a URL da imagem
         const productData = {
           titulo: title,
           descricao: (descIndex !== undefined && row[descIndex]) ? String(row[descIndex]).trim() : "Sem descrição.",
           preco: priceValue,
+          url_imagem: imageUrl, // <--- INCLUINDO A URL AQUI
         };
 
         const { data: insertedProduct, error: productError } = await supabase
           .from("produtos")
-          .insert(productData)
+          .insert(productData) // <--- INSERT NA TABELA CORRETA
           .select("id");
 
         if (productError || !insertedProduct || insertedProduct.length === 0) {
@@ -396,19 +384,9 @@ const Products = () => {
               });
           }
         }
-
-        // Inserir imagem se existir
-        if (urlIndex !== undefined && row[urlIndex]) {
-          const imageUrl = String(row[urlIndex]).trim();
-          await supabase
-            .from("arquivos")
-            .insert({
-              produto_id: newProductId,
-              url: imageUrl,
-              tipo: "imagem"
-            });
-        }
-
+        
+        // REMOVIDA A LÓGICA DE INSERÇÃO NA TABELA "ARQUIVOS" AQUI
+        
         successCount++;
       }
 
@@ -424,7 +402,68 @@ const Products = () => {
     }
   };
 
-  // Edição em Massa
+  // Edição em Massa (AJUSTADO)
+  const handleBulkEditSave = async () => {
+    if (selectedProducts.size === 0) {
+      toast.error("Selecione pelo menos um produto.");
+      return;
+    }
+
+    const updates: any = {};
+    
+    if (bulkEditData.preco) {
+      const priceValue = parseFloat(bulkEditData.preco);
+      if (!isNaN(priceValue)) {
+        updates.preco = priceValue;
+      }
+    }
+
+    if (bulkEditData.descricao) {
+      updates.descricao = bulkEditData.descricao;
+    }
+    
+    // NOTA: Para edição em massa de URL da imagem, seria necessário adicionar um campo
+    // no formulário de edição em massa e incluí-lo aqui em 'updates'. 
+    // Por enquanto, ele foi deixado de fora do 'bulkEditData'.
+
+    const productIds = Array.from(selectedProducts);
+
+    if (Object.keys(updates).length > 0) {
+      for (const productId of productIds) {
+        await supabase
+          .from("produtos")
+          .update(updates)
+          .eq("id", productId);
+      }
+    }
+
+    if (bulkEditData.category_ids.length > 0) {
+      for (const productId of productIds) {
+        // Deleta categorias antigas
+        await supabase
+          .from("produtos_categorias")
+          .delete()
+          .eq("produto_id", productId);
+
+        // Insere categorias novas
+        const categoryInserts = bulkEditData.category_ids.map(catId => ({
+          produto_id: productId,
+          categoria_id: catId
+        }));
+
+        await supabase
+          .from("produtos_categorias")
+          .insert(categoryInserts);
+      }
+    }
+
+    toast.success(`${productIds.length} produtos atualizados com sucesso!`);
+    setBulkEditMode(false);
+    setSelectedProducts(new Set());
+    setBulkEditData({ preco: "", category_ids: [], descricao: "" });
+    fetchProducts();
+  };
+
   const handleSelectProduct = (productId: string) => {
     setSelectedProducts(prev => {
       const newSet = new Set(prev);
@@ -445,60 +484,6 @@ const Products = () => {
     }
   };
 
-  const handleBulkEditSave = async () => {
-    if (selectedProducts.size === 0) {
-      toast.error("Selecione pelo menos um produto.");
-      return;
-    }
-
-    const updates: any = {};
-    
-    if (bulkEditData.preco) {
-      const priceValue = parseFloat(bulkEditData.preco);
-      if (!isNaN(priceValue)) {
-        updates.preco = priceValue;
-      }
-    }
-
-    if (bulkEditData.descricao) {
-      updates.descricao = bulkEditData.descricao;
-    }
-
-    const productIds = Array.from(selectedProducts);
-
-    if (Object.keys(updates).length > 0) {
-      for (const productId of productIds) {
-        await supabase
-          .from("produtos")
-          .update(updates)
-          .eq("id", productId);
-      }
-    }
-
-    if (bulkEditData.category_ids.length > 0) {
-      for (const productId of productIds) {
-        await supabase
-          .from("produtos_categorias")
-          .delete()
-          .eq("produto_id", productId);
-
-        const categoryInserts = bulkEditData.category_ids.map(catId => ({
-          produto_id: productId,
-          categoria_id: catId
-        }));
-
-        await supabase
-          .from("produtos_categorias")
-          .insert(categoryInserts);
-      }
-    }
-
-    toast.success(`${productIds.length} produtos atualizados com sucesso!`);
-    setBulkEditMode(false);
-    setSelectedProducts(new Set());
-    setBulkEditData({ preco: "", category_ids: [], descricao: "" });
-    fetchProducts();
-  };
 
   const handleBulkDelete = async () => {
     if (selectedProducts.size === 0) {
@@ -516,19 +501,15 @@ const Products = () => {
     const productIds = Array.from(selectedProducts);
 
     for (const productId of productIds) {
-      // Excluir associações de categoria
+      // 1. Excluir associações de categoria
       await supabase
         .from("produtos_categorias")
         .delete()
         .eq("produto_id", productId);
 
-      // Excluir arquivos
-      await supabase
-        .from("arquivos")
-        .delete()
-        .eq("produto_id", productId);
+      // 2. REMOVIDA A CHAMADA PARA EXCLUIR ARQUIVOS (Não há mais a tabela arquivos)
 
-      // Excluir produto
+      // 3. Excluir produto
       await supabase
         .from("produtos")
         .delete()
