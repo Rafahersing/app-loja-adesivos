@@ -238,7 +238,7 @@ const Products = () => {
 
   const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
     const categoryMap: { [key: string]: string } = categories.reduce((map, cat) => {
-      map[cat.slug] = cat.id;
+      map[cat.nome] = cat.id;
       return map;
     }, {});
 
@@ -297,8 +297,7 @@ const Products = () => {
 
       if (categoryIndex !== undefined && row[categoryIndex]) {
         const categoryName = row[categoryIndex]?.trim();
-        const categorySlug = slugify(categoryName);
-        const categoryId = categoryMap[categorySlug];
+        const categoryId = categoryMap[categoryName];
 
         if (categoryId) {
           finalProductCategories.push({
@@ -583,7 +582,7 @@ const Products = () => {
                       <Card key={product.id} className="p-4 flex flex-col">
                         <img src={product.imagem_url} alt={product.nome} className="w-full h-48 object-cover rounded-md mb-4" />
                         <h3 className="text-lg font-semibold mb-1">{product.nome}</h3>
-                        <p className="text-sm text-muted-foreground mb-2">{getCategoryName(product.category_slug)}</p>
+                        <p className="text-sm text-muted-foreground mb-2">{getCategoryName(product.category_nome)}</p>
                         <p className="text-md font-bold mb-4">R$ {product.preco.toFixed(2)}</p>
                         <p className="text-sm text-muted-foreground flex-grow">{product.descricao}</p>
                         <div className="flex gap-2 mt-4">
@@ -608,4 +607,14 @@ const Products = () => {
 };
 
 export default Products;
+
+
+
+
+  const simulateBulkUpload = async () => {
+    const csvContent = `Título,Descrição,Preço,URL da Imagem,Categoria\nProduto Teste 1,Descrição do Produto Teste 1,10.00,https://example.com/image1.png,Natureza\nProduto Teste 2,Descrição do Produto Teste 2,20.50,https://example.com/image2.png,Tecnologia\nProduto Teste 3,Descrição do Produto Teste 3,5.75,https://example.com/image3.png,Outros`;
+    const file = new File([csvContent], "products_import_example.csv", { type: "text/csv" });
+    const event = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>;
+    await handleBulkUpload(event);
+  };
 
