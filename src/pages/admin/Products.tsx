@@ -497,6 +497,92 @@ const Products = () => {
   };
 
   // Funções de UI
+
+  const handleBulkDelete = async () => {
+    if (selectedProducts.size === 0) {
+      toast.error("Selecione pelo menos um produto para excluir.");
+      return;
+    }
+
+    const count = selectedProducts.size;
+    if (!window.confirm(`Tem certeza que deseja excluir ${count} produto(s) selecionado(s)?`)) {
+      return;
+    }
+
+    setLoadingProducts(true);
+
+    const productIds = Array.from(selectedProducts);
+
+    for (const productId of productIds) {
+      // Excluir associações de categoria
+      await supabase
+        .from("produtos_categorias")
+        .delete()
+        .eq("produto_id", productId);
+
+      // Excluir arquivos
+      await supabase
+        .from("arquivos")
+        .delete()
+        .eq("produto_id", productId);
+
+      // Excluir produto
+      await supabase
+        .from("produtos")
+        .delete()
+        .eq("id", productId);
+    }
+
+    toast.success(`${count} produto(s) excluído(s) com sucesso!`);
+    setSelectedProducts(new Set());
+    setBulkEditMode(false);
+    fetchProducts();
+    setLoadingProducts(false);
+  };
+
+
+  const handleBulkDelete = async () => {
+    if (selectedProducts.size === 0) {
+      toast.error("Selecione pelo menos um produto para excluir.");
+      return;
+    }
+
+    const count = selectedProducts.size;
+    if (!window.confirm(`Tem certeza que deseja excluir ${count} produto(s) selecionado(s)?`)) {
+      return;
+    }
+
+    setLoadingProducts(true);
+
+    const productIds = Array.from(selectedProducts);
+
+    for (const productId of productIds) {
+      // Excluir associações de categoria
+      await supabase
+        .from("produtos_categorias")
+        .delete()
+        .eq("produto_id", productId);
+
+      // Excluir arquivos
+      await supabase
+        .from("arquivos")
+        .delete()
+        .eq("produto_id", productId);
+
+      // Excluir produto
+      await supabase
+        .from("produtos")
+        .delete()
+        .eq("id", productId);
+    }
+
+    toast.success(`${count} produto(s) excluído(s) com sucesso!`);
+    setSelectedProducts(new Set());
+    setBulkEditMode(false);
+    fetchProducts();
+    setLoadingProducts(false);
+  };
+
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setFormData({
@@ -556,6 +642,22 @@ const Products = () => {
                       variant={bulkEditMode ? "default" : "outline"}
                     >
                       {bulkEditMode ? "Cancelar Edição em Massa" : `Editar ${selectedProducts.size} Selecionados`}
+                    </Button>
+                    <Button 
+                      onClick={handleBulkDelete}
+                      variant="destructive"
+                      disabled={loadingProducts}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir {selectedProducts.size} Selecionados
+                    </Button>
+                    <Button 
+                      onClick={handleBulkDelete}
+                      variant="destructive"
+                      disabled={loadingProducts}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir {selectedProducts.size} Selecionados
                     </Button>
                   )}
                 </div>
