@@ -23,11 +23,11 @@ interface Category {
 // Interface para o produto (usada no state `products`)
 interface Product {
     id: string; 
-    nome: string; 
-    image_url: string; 
+    nome: string; 
+    image_url: string; 
     category_slug: string; 
-    price: number; 
-    descricao: string; 
+    price: number; 
+    descricao: string; 
 }
 
 // Interface para o formulário
@@ -63,61 +63,64 @@ const Products = () => {
 
   // 1. Buscar Categorias (OK)
   const fetchCategories = async () => {
-    setLoadingCategories(true);
-    const { data, error } = await supabase
-      .from('categorias')
-      .select('id, name, slug')
-      .order('name', { ascending: true });
+    setLoadingCategories(true);
+    const { data, error } = await supabase
+      .from('categorias')
+      .select('id, name, slug')
+      .order('name', { ascending: true });
 
-    if (error) {
-      console.error('Erro ao carregar categorias para produtos:', error);
-      toast.error('Erro ao carregar lista de categorias.');
-    } else if (data) {
-      setCategories(data as Category[]);
-    }
-    setLoadingCategories(false);
-  };
-    
-  // 2. Buscar Produtos Reais (CORRIGIDO: 'preço' para 'preco' no select e no mapeamento)
+    if (error) {
+      console.error('Erro ao carregar categorias para produtos:', error);
+      toast.error('Erro ao carregar lista de categorias.');
+    } else if (data) {
+      setCategories(data as Category[]);
+    }
+    setLoadingCategories(false);
+  };
+    
+  // 2. Buscar Produtos (CORREÇÃO CRÍTICA 1: SELECT)
   const fetchProducts = async () => {
-    setLoadingProducts(true);
-    
-    // CORREÇÃO: Select deve usar 'preco' (sem cedilha) conforme o DB
-    const { data, error } = await supabase
-      .from('produtos')
-      .select(`id, nome, preco, imagem_url, descricao, produtos_categorias!inner(category_id)`)
-      .order('id', { ascending: false });
+    setLoadingProducts(true);
+    
+    // CORREÇÃO 1: 'category_id' (em inglês) na query do Supabase DEVE ser 'categoria_id' (em português)
+    // CORREÇÃO ADICIONAL: As chaves no SELECT devem ser as mesmas do DB ('preco', 'imagem_url', 'descricao')
+    const { data, error } = await supabase
+      .from('produtos')
+      // MUDANÇA AQUI: produtos_categorias!inner(categoria_id)
+      .select(`id, nome, preco, imagem_url, descricao, produtos_categorias!inner(categoria_id)`)
+      .order('id', { ascending: false });
 
-    if (error) {
-        console.error('Erro ao carregar produtos:', error);
-        // Toast de erro de RLS (SELECT)
-        toast.error('Erro ao carregar lista de produtos. Verifique as Policies de RLS (SELECT) no Supabase.'); 
-    } else if (data) {
-        // Mapeia a ID da Categoria para o SLUG da Categoria (usando o state categories)
-        const categoryIdToSlug: { [key: string]: string } = categories.reduce((map, cat) => {
-            map[cat.id] = cat.slug;
-            return map;
-        }, {});
-        
-        const mappedProducts = data.map((p: any) => {
-            // Pega o ID da categoria da primeira relação
-            const categoryId = p.produtos_categorias[0]?.category_id;
-            
-            return {
-                id: p.id,
-                // Mapeia as chaves do DB para a interface Product
-                nome: p.nome,
-                price: p.preco, // CORRIGIDO: Mapeado de 'preco' (sem cedilha) do DB
-                image_url: p.imagem_url, 
-                descricao: p.descricao, 
-                // Converte o ID para o SLUG
-                category_slug: categoryIdToSlug[categoryId] || 'sem-categoria'
-            };
-        });
-        setProducts(mappedProducts as Product[]);
-    }
-    setLoadingProducts(false);
-  }
+    if (error) {
+        console.error('Erro ao carregar produtos:', error);
+        // O erro de SELECT 400 (Bad Request) que você viu deve ser resolvido agora.
+        toast.error('Erro ao carregar lista de produtos. Verifique as Policies de RLS (SELECT) no Supabase.'); 
+    } else if (data) {
+        // Mapeia a ID da Categoria para o SLUG da Categoria (usando o state categories)
+        const categoryIdToSlug: { [key: string]: string } = categories.reduce((map, cat) => {
+            map[cat.id] = cat.slug;
+            return map;
+        }, {});
+        
+        const mappedProducts = data.map((p: any) => {
+            // Pega o ID da categoria da primeira relação
+            // A coluna de relacionamento mudou para 'categoria_id'
+            const categoryId = p.produtos_categorias[0]?.categoria_id; // MUDANÇA AQUI
+            
+            return {
+                id: p.id,
+                // As chaves abaixo já estavam corretas na interface e mapeamento:
+                nome: p.nome,
+                price: p.preco, // Mapeado de 'preco' (sem cedilha) do DB
+                image_url: p.imagem_url, 
+                descricao: p.descricao, 
+                // Converte o ID para o SLUG
+                category_slug: categoryIdToSlug[categoryId] || 'sem-categoria'
+            };
+        });
+        setProducts(mappedProducts as Product[]);
+    }
+    setLoadingProducts(false);
+  }
 
   // Use um useEffect para buscar categorias primeiro
   useEffect(() => {
@@ -167,8 +170,17 @@ const Products = () => {
         return;
     }
 
-    // CORREÇÃO CRÍTICA: As chaves devem ser 'descricao' e 'preco' (sem cedilha) conforme o DB
-    const productData = { nome, imagem_url: image_url, descricao, preco: priceValue };
+    // CORREÇÃO CRÍTICA 2: Mapeamento do objeto INSERT para o Supabase
+    // O formulário usa as chaves 'nome', 'descricao', 'image_url', 'price'.
+    // O Supabase espera: 'nome', 'descricao', 'imagem_url' e 'preco' (sem cedilha).
+    // O erro 'description' (em inglês) foi resolvido.
+    const productData = { 
+      nome, 
+      imagem_url: image_url, 
+      descricao, 
+      preco: priceValue // CORRETO: usando 'preco' (sem cedilha)
+    };
+    
     let error = null;
 
     if (editingProduct) {
@@ -179,12 +191,13 @@ const Products = () => {
             .eq('id', editingProduct.id));
             
         if (!error) {
-            // Atualizar relacionamento de categoria
+            // CORREÇÃO DE INSERÇÃO: A coluna deve ser 'categoria_id' (português)
             const { error: catError } = await supabase
                 .from('produtos_categorias')
                 .upsert(
-                    { product_id: editingProduct.id, category_id: category.id },
-                    { onConflict: 'product_id', ignoreDuplicates: false }
+                    // MUDANÇA AQUI: category_id -> categoria_id
+                    { produto_id: editingProduct.id, categoria_id: category.id },
+                    { onConflict: 'produto_id', ignoreDuplicates: false }
                 );
             
             if (catError) console.error("Erro ao atualizar relação de categoria:", catError);
@@ -205,8 +218,9 @@ const Products = () => {
              const { error: catError } = await supabase
                 .from('produtos_categorias')
                 .insert({ 
-                    product_id: insertedProduct[0].id, 
-                    category_id: category.id 
+                    // MUDANÇA AQUI: product_id -> produto_id e category_id -> categoria_id
+                    produto_id: insertedProduct[0].id, 
+                    categoria_id: category.id 
                 });
              
              if (catError) console.error("Erro ao inserir relação de categoria:", catError);
@@ -217,7 +231,6 @@ const Products = () => {
     
     if (error) {
         console.error('Erro de Supabase (Salvar Produto):', error);
-        // O erro de schema (missing column) deve ser corrigido agora.
         toast.error(`Falha ao salvar produto: ${error.message}`);
     } else {
         setEditingProduct(null);
@@ -268,16 +281,17 @@ const Products = () => {
       
       // Mapeamento tolerante a diferentes nomes/casos
       headers.forEach((h, i) => {
-          // Normalize (remove acentos e caracteres)
+          // Normalize (remove acentos, cedilhas e caracteres)
           const normalized = h.toLowerCase().trim()
             .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
             
-          // CORREÇÃO 2.1: Mapeamento de Cabeçalho mais robusto para 'Título'
+          // CORREÇÃO 3: Mapeamento de Cabeçalho mais robusto para 'Título' e 'Preço'
           if (normalized.includes('url') || normalized.includes('imagem')) headerMap['url'] = i;
           else if (normalized.includes('categoria')) headerMap['categoria'] = i;
-          // Verifica a palavra exata 'título' (sem acento) ou 'nome'
+          // 'titulo' ou 'nome' (resolve erro de coluna obrigatória)
           else if (normalized.includes('titulo') || normalized.includes('nome')) headerMap['titulo'] = i;
           else if (normalized.includes('descricao')) headerMap['descricao'] = i;
+          // 'preco' (sem cedilha) ou 'valor' (resolve erro de 'preço')
           else if (normalized.includes('preco') || normalized.includes('valor')) headerMap['preco'] = i;
       });
 
@@ -319,7 +333,7 @@ const Products = () => {
               imagem_url: (urlIndex !== undefined && row[urlIndex]) ? row[urlIndex].trim() : null,
               nome: title,
               descricao: (descIndex !== undefined && row[descIndex]) ? row[descIndex].trim() : 'Sem descrição.',
-              preco: parseFloat(priceValue) || 0,  // CORRIGIDO: Usa 'preco' (sem cedilha)
+              preco: parseFloat(priceValue) || 0,  // CORRETO: Usa 'preco' (sem cedilha)
           };
 
           finalProducts.push(product);
@@ -333,8 +347,9 @@ const Products = () => {
           
              if (categoryId) {
                  finalProductCategories.push({
-                     product_id: tempProductId,
-                     category_id: categoryId,
+                     // CORREÇÃO: A coluna deve ser 'produto_id' e 'categoria_id' (português)
+                     produto_id: tempProductId, 
+                     categoria_id: categoryId, // MUDANÇA AQUI
                  });
              } else {
                  toast.warning(`Linha ${rowNumber}: Categoria "${categoryName}" não encontrada. Produto será importado, mas sem categoria.`);
