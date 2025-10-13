@@ -4,14 +4,9 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { createClient } from '@supabase/supabase-js';
 
-// Função para combinar classes Tailwind (mantida)
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
-
-// ----------------------------------------------------------------------
-// Configuração do Supabase
-// ----------------------------------------------------------------------
 
 const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
@@ -19,13 +14,9 @@ const supabaseAnonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as string);
 
 // ----------------------------------------------------------------------
-// Funções de Busca de Dados (Shop) - AGORA LANÇAM ERROS
+// Funções de Busca de Dados (Shop)
 // ----------------------------------------------------------------------
 
-/**
- * Busca todas as categorias do Supabase.
- * @returns Um array de objetos de categoria.
- */
 export async function fetchCategories() {
     const { data, error } = await supabase
         .from('categorias')
@@ -38,11 +29,6 @@ export async function fetchCategories() {
     return data;
 }
 
-/**
- * Busca todos os produtos.
- * AJUSTADO: Usa 'url_imagem' e garante que 'preco' seja um número.
- * @returns Um array de objetos de produto mapeado para a interface Product.
- */
 export async function fetchProducts() {
     const { data, error } = await supabase
         .from('produtos')
@@ -61,17 +47,15 @@ export async function fetchProducts() {
         throw new Error(`Erro ao buscar produtos: ${error.message}`);
     }
 
-    // AJUSTE CRÍTICO DE MAPEAMENTO: Proteção contra 'null' em price e mapeamento de campos.
+    // Mapeamento que ALINHA DB (preco) com Interface (price)
     const productsData = data.map((product: any) => {
-        // Proteção 1: Garante que 'preco' seja uma string antes de tentar parseFloat
         const rawPrice = product.preco ? String(product.preco) : '0';
 
         return {
-            // Mapeamento snake_case (DB) -> camelCase (Frontend Interface)
             id: product.id,
             title: product.titulo || 'Produto Sem Título',
             description: product.descricao || '',
-            // Proteção 2: Garante que o resultado seja um número (0 se falhar)
+            // Mapeamento e proteção
             price: parseFloat(rawPrice) || 0, 
             
             imageUrl: product.url_imagem || '', 
@@ -86,9 +70,6 @@ export async function fetchProducts() {
 }
 
 
-/**
- * Converte uma string em um formato URL-friendly (slug).
- */
 export const slugify = (text: string): string => {
     return text
         .toString()
