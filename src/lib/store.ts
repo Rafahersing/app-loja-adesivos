@@ -1,37 +1,71 @@
+// src/lib/store.ts
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Product } from '@/types/product';
-import { supabase } from '@/lib/supabase'; // ⬅️ ADICIONAR
-import { toast } from 'sonner'; // ⬅️ ADICIONAR (Para feedback de erro)
+import { supabase } from '@/lib/supabase'; 
+import { toast } from 'sonner';
 
 interface CartItem extends Product {
   quantity: number;
 }
 
-// ADICIONAR: Nova ação para inicializar favoritos do banco
 interface StoreState {
-  // ... (Cart methods)
+  // Cart
+  cart: CartItem[];
+  addToCart: (product: Product) => void;
+  removeFromCart: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number) => void;
+  clearCart: () => void;
+  
   // Favorites
   favorites: string[];
-  toggleFavorite: (productId: string, userId: string) => Promise<void>; // ⬅️ ALTERAR: Recebe userId e é assíncrona
+  toggleFavorite: (productId: string, userId: string) => Promise<void>; // ⬅️ ALTERADO: Recebe userId e é assíncrona
   isFavorite: (productId: string) => boolean;
-  initializeFavorites: (userId: string) => Promise<void>; // ⬅️ ADICIONAR
+  initializeFavorites: (userId: string) => Promise<void>; // ⬅️ ADICIONADO
 }
 
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
-      // ... (Cart methods - Mantêm o mesmo código)
+      // Cart
       cart: [],
-      addToCart: (product) => { /* ... */ },
-      removeFromCart: (productId) => { /* ... */ },
-      updateQuantity: (productId, quantity) => { /* ... */ },
-      clearCart: () => set({ cart: [] }),
-
+      addToCart: (product) => {
+        const cart = get().cart;
+        const existingItem = cart.find((item) => item.id === product.id);
+        
+        if (existingItem) {
+          set({
+            cart: cart.map((item) =>
+              item.id === product.id
+                ? { ...item, quantity: item.quantity + 1 }
+                : item
+            ),
+          });
+        } else {
+          set({ cart: [...cart, { ...product, quantity: 1 }] });
+        }
+      },
+      removeFromCart: (productId) => {
+        set({ cart: get().cart.filter((item) => item.id !== productId) });
+      },
+      updateQuantity: (productId, quantity) => {
+        if (quantity <= 0) {
+          get().removeFromCart(productId);
+          return;
+        }
+        set({
+          cart: get().cart.map((item) =>
+            item.id === productId ? { ...item, quantity } : item
+          ),
+        });
+      },
+      clearCart: () => set({ cart: [] }),
+      
       // Favorites
       favorites: [],
       
-      // AÇÃO ADICIONADA: Busca os favoritos do Supabase e salva no estado local
+      // FUNÇÃO ADICIONADA: Busca os favoritos do Supabase e salva no estado local
       initializeFavorites: async (userId) => {
           const { data, error } = await supabase
               .from('favoritos')
@@ -47,8 +81,18 @@ export const useStore = create<StoreState>()(
           set({ favorites: productIds });
       },
 
-      // AÇÃO MODIFICADA: Alterna favorito no estado local E no Supabase
-      toggleFavorite: async (productId, userId) => { // userId é passado por parâmetro
+      // FUNÇÃO MODIFICADA: Alterna favorito no estado local E no Supabase
+      toggleFavorite: async (productId, userId) => { 
+        
+        // ⭐️ LOG DE DEBBUG (OPCIONAL, mas útil) ⭐️
+        console.log('Tentando toggleFavorite. User ID:', userId, 'Product ID:', productId);
+
+        if (!userId) {
+            console.error("Erro: userId não fornecido. Não é possível favoritar.");
+            toast.error('Você precisa estar logado para favoritar.');
+            return;
+        }
+
         const favorites = get().favorites;
         const isCurrentlyFavorite = favorites.includes(productId);
         
@@ -58,7 +102,7 @@ export const useStore = create<StoreState>()(
               .from('favoritos')
               .delete()
               .eq('usuario_id', userId)
-              .eq('produto_id', productId); // Assegura que o ID do produto é int8
+              .eq('produto_id', productId);
 
           if (error) {
               toast.error('Falha ao remover favorito do servidor.');
@@ -75,12 +119,13 @@ export const useStore = create<StoreState>()(
               .from('favoritos')
               .insert({
                   usuario_id: userId,
-                  produto_id: productId, // O valor é passado como string/int. Supabase deve converter para int8.
+                  produto_id: productId,
               });
 
           if (error) {
+              // ESTE É O ERRO DE RLS
               toast.error('Falha ao adicionar favorito ao servidor.');
-              console.error('Erro INSERT Supabase:', error);
+              console.error('Erro INSERT Supabase (RLS):', error); 
               return;
           }
 
@@ -92,7 +137,8 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'pixelstore-storage',
-      partialize: (state) => ({ cart: state.cart }) // NÃO persistir `favorites` localmente; dependa do Supabase.
+      // Não persista favorites, pois eles vêm do Supabase
+      partialize: (state) => ({ cart: state.cart }) 
     }
   )
 );
