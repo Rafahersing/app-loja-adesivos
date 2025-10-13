@@ -1,11 +1,7 @@
 name = "app-loja-adesivos"
 compatibility_date = "2025-10-13"
 
-# Pasta final do build do frontend (por exemplo, Vite, React, etc.)
-pages_build_output_dir = "dist"
-
 [pages]
-# Diretório onde ficam suas funções backend (serverless)
 api_directory = "functions"
 
 [vars]
