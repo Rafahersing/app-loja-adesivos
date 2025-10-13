@@ -11,7 +11,7 @@ interface CartItem extends Product {
 }
 
 interface StoreState {
-  // Cart
+  // Cart (mantido)
   cart: CartItem[];
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
@@ -65,7 +65,7 @@ export const useStore = create<StoreState>()(
       // Favorites
       favorites: [],
       
-      // ⭐️ CORRIGIDO: Conversão de BIGINT (DB) para String (Zustand)
+      // ⭐️ CORREÇÃO 1/2: Inicialização (BIGINT -> String)
       initializeFavorites: async (userId) => {
           const { data, error } = await supabase
               .from('favoritos')
@@ -77,29 +77,28 @@ export const useStore = create<StoreState>()(
               return;
           }
           
-          // ✅ CONVERTE o BIGINT (item.produto_id) para STRING
+          // ✅ Converte o ID numérico (BIGINT) do DB para STRING para o Zustand
           const productIds = data ? data.map(item => String(item.produto_id)) : []; 
           set({ favorites: productIds });
           console.log("IDs de Favoritos carregados (Store):", productIds);
       },
 
-      // ⭐️ CORRIGIDO: Conversão de String (Frontend) para BIGINT (DB)
+      // ⭐️ CORREÇÃO 2/2: toggleFavorite (String -> BIGINT)
       toggleFavorite: async (productId, userId) => { 
         
-        // 1. Log para debug
-        console.log(`[ToggleFavorite] ID recebido: ${productId}, Tipo: ${typeof productId}`);
-
         if (!userId) {
-            console.error("Erro: userId não fornecido. Não é possível favoritar.");
+            // Este caso já é tratado no Shop.tsx, mas por segurança
+            toast.error('Você precisa estar logado para favoritar.'); 
             return;
         }
 
-        // 2. Tenta converter a STRING do frontend para BIGINT (Number)
+        // Tenta converter a STRING do frontend para BIGINT (Number)
+        // ESSENCIAL: O Supabase espera um NUMBER (BIGINT) para produto_id
         const dbProductId = Number(productId); 
 
         if (isNaN(dbProductId) || !dbProductId) {
              console.error(`Erro de tipagem: O ID do produto (${productId}) não é um número válido para o banco de dados (BIGINT).`);
-             toast.error('Erro interno: O ID do produto é inválido (não é um número).');
+             toast.error('Erro interno: O ID do produto é inválido (tipagem incorreta).');
              return;
         }
 
@@ -107,12 +106,12 @@ export const useStore = create<StoreState>()(
         const isCurrentlyFavorite = favorites.includes(productId);
         
         if (isCurrentlyFavorite) {
-          // DELETE
+          // DELETE do Supabase
           const { error } = await supabase
               .from('favoritos')
               .delete()
               .eq('usuario_id', userId)
-              // ✅ Usa o número convertido para o DB
+              // ✅ Passa o NUMBER (BIGINT)
               .eq('produto_id', dbProductId); 
 
           if (error) {
@@ -126,17 +125,17 @@ export const useStore = create<StoreState>()(
           set({ favorites: favorites.filter((id) => id !== productId) });
           
         } else {
-          // INSERT
+          // INSERT no Supabase
           const { error } = await supabase
               .from('favoritos')
               .insert({
                   usuario_id: userId,
-                  // ✅ Usa o número convertido para o DB
+                  // ✅ Passa o NUMBER (BIGINT)
                   produto_id: dbProductId, 
               });
 
           if (error) {
-              // Esta mensagem de falha é a que vimos (b15c82.png)
+              // Esta é a mensagem de falha que você estava vendo
               toast.error('Falha ao adicionar favorito ao servidor. (Verifique o RLS ou a tipagem do ID)');
               console.error('Erro INSERT Supabase (RLS/Tipagem):', error); 
               return;
