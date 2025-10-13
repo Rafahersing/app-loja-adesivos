@@ -17,7 +17,7 @@ export const CategoryFilter = ({ categories, selectedCategory, onCategoryChange 
   // ⭐️ CORREÇÃO 1: Criamos a opção "Todas" usando 'name' para consistência com a interface.
   const allCategory: Category = {
     id: "all", // Usamos "all" para a URL e comparação
-    name: "Todas as Imagens", // Usamos 'name' para exibição
+    name: "Todos os Adesivos", // Usamos 'name' para exibição
     slug: 'all' // Adicionamos 'slug' apenas para satisfazer a interface, se necessário
   };
   
