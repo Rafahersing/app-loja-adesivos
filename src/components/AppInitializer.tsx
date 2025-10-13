@@ -1,8 +1,8 @@
-// src/components/AppInitializer.tsx (Exemplo)
+// src/components/AppInitializer.tsx
 
 import { useEffect } from 'react';
-import { useAuth } from '@/lib/auth';
-import { useStore } from '@/lib/store';
+import { useAuth } from '@/lib/auth'; 
+import { useStore } from '@/lib/store'; 
 
 const AppInitializer = () => {
     const { user, loading } = useAuth();
@@ -10,10 +10,12 @@ const AppInitializer = () => {
     
     useEffect(() => {
         if (!loading && user) {
-            // Carrega os favoritos do Supabase APENAS se o usuário estiver logado
             initializeFavorites(user.id);
         }
     }, [user, loading, initializeFavorites]);
 
-    return null; // Este componente não renderiza nada
+    return null;
 };
+
+// ⭐️ CORREÇÃO: Altere para exportação default
+export default AppInitializer;
