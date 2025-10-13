@@ -21,7 +21,7 @@ const Shop = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const { user } = useAuth();
+    const { user } = useAuth();
     const { addToCart, toggleFavorite, isFavorite } = useStore();
 
     // --------------------------------------------------
@@ -76,6 +76,7 @@ const Shop = () => {
         let filtered = products;
 
         if (selectedCategory !== "all") {
+            // p.category_id é uma string devido à correção no fetchProducts
             filtered = filtered.filter((p) => p.category_id === selectedCategory);
         }
 
@@ -94,23 +95,17 @@ const Shop = () => {
         toast.success(`${product.title} adicionado ao carrinho!`);
     };
 
-    // ⭐️ FUNÇÃO ATUALIZADA (SEM TOAST DE SUCESSO AQUI) ⭐️
+    // ✅ Lógica correta: chama o store e o store dispara o toast
     const handleToggleFavorite = (productId: string) => {
-        // 1. Verifica se o usuário está logado
-        if (!user || !user.id) {
-            toast.error("Você precisa estar logado para favoritar.");
-            return;
-        }
-
-        // 2. Chama a função do store com o userId.
-        // O toast de sucesso/erro AGORA está DENTRO do useStore.ts
-        toggleFavorite(productId, user.id); 
+        if (!user || !user.id) {
+            toast.error("Você precisa estar logado para favoritar.");
+            return;
+        }
+        toggleFavorite(productId, user.id); 
     };
 
+    // ... (restante da renderização, mantida) ...
 
-    // --------------------------------------------------
-    // Condições de exibição (mantidas)
-    // --------------------------------------------------
     if (error) {
         return (
             <div className="container mx-auto px-4 py-8 text-center bg-red-50 border border-red-200 p-6 rounded-lg">
@@ -119,15 +114,11 @@ const Shop = () => {
                 <p className="mt-4 text-sm text-gray-700 font-semibold">
                     AÇÃO NECESSÁRIA: Verifique as **Policies de RLS** (Row Level Security) das tabelas `produtos` e `categorias` no Supabase.
                 </p>
-                <p className="text-sm text-gray-500">
-                    Se o erro não for RLS, verifique os logs de rede para ver a resposta exata do Supabase.
-                </p>
             </div>
         );
     }
 
     if (isLoading) {
-        // ... Skeleton Loading ...
         return (
             <div className="container mx-auto px-4 py-8">
                 <h1 className="text-4xl font-bold mb-8">Explorar Imagens</h1>
@@ -145,8 +136,6 @@ const Shop = () => {
             </div>
         );
     }
-    // --------------------------------------------------
-
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -159,7 +148,6 @@ const Shop = () => {
                 </p>
             </div>
 
-            {/* Category Filter */}
             <div className="mb-8">
                 <h2 className="text-sm font-semibold mb-4 text-muted-foreground uppercase tracking-wide">
                     Categorias
@@ -171,7 +159,6 @@ const Shop = () => {
                 />
             </div>
 
-            {/* Products Grid */}
             {filteredProducts.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                     {filteredProducts.map((product) => (
