@@ -16,6 +16,9 @@ import Dashboard from "./pages/admin/Dashboard";
 import Products from "./pages/admin/Products";
 import Orders from "./pages/admin/Orders";
 import Users from "./pages/admin/Users";
+import Checkout from "./pages/Checkout";
+import CheckoutSuccess from "./pages/CheckoutSuccess";
+import CheckoutFailure from "./pages/CheckoutFailure";
 import NotFound from "./pages/NotFound";
 import RequireAdmin from "@/components/layout/RequireAdmin";
 
@@ -46,6 +49,9 @@ const App = () => (
             <Route path="/favorites" element={<Favorites />} />
             <Route path="/account" element={<Account />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/checkout/success" element={<CheckoutSuccess />} />
+            <Route path="/checkout/failure" element={<CheckoutFailure />} />
           </Route>
 
           {/* ROTAS ADMIN PROTEGIDAS (Aninhamento Correto) */}
