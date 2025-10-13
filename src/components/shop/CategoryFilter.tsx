@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Category } from "@/types/product"; // Usaremos apenas a tipagem Category
+import { Category } from "@/types/product"; // Usamos a tipagem Category, que deve ter a propriedade 'name'
 
 interface CategoryFilterProps {
-  // ⭐️ Novo: Agora recebe a lista de categorias do Supabase
+  // Recebe a lista de categorias do Supabase. A propriedade de nome deve ser 'name'.
   categories: Category[]; 
   
-  // O selectedCategory será o ID da categoria (como string), ou "all"
+  // O selectedCategory é o ID da categoria (string) ou "all"
   selectedCategory: string; 
   
   // O onCategoryChange recebe o ID da categoria (string) ou "all"
@@ -14,30 +14,33 @@ interface CategoryFilterProps {
 
 export const CategoryFilter = ({ categories, selectedCategory, onCategoryChange }: CategoryFilterProps) => {
   
-  // ⭐️ Criamos a opção "Todas" manualmente, já que ela não vem do banco de dados
-  const allCategory = {
-    id: "all", // Usamos "all" para a URL
-    nome: "Todas as Imagens" // Usamos "nome" para alinhar com a tipagem
-  } as unknown as Category; // Faz um cast para alinhar com a tipagem, se necessário
+  // ⭐️ CORREÇÃO 1: Criamos a opção "Todas" usando 'name' para consistência com a interface.
+  const allCategory: Category = {
+    id: "all", // Usamos "all" para a URL e comparação
+    name: "Todas as Imagens", // Usamos 'name' para exibição
+    slug: 'all' // Adicionamos 'slug' apenas para satisfazer a interface, se necessário
+  };
   
   // Concatena a opção "Todas" com as categorias reais
   const categoriesToDisplay = [allCategory, ...categories];
   
   return (
+    // 'flex-wrap' garante que as categorias quebrem a linha se houver muitas
     <div className="flex flex-wrap gap-2">
       {categoriesToDisplay.map((category) => (
         <Button
-          // ⭐️ Usamos o ID da categoria (convertido para string se for número)
+          // ⭐️ CORREÇÃO 2: Usamos category.id diretamente (UUIDs já são strings)
           key={category.id} 
           
-          // ⭐️ Compara com o ID da categoria. Se category.id for número, converta para string: category.id.toString()
-          variant={selectedCategory === category.id.toString() ? "default" : "outline"} 
+          // ⭐️ CORREÇÃO 3: Compara selectedCategory (string) com category.id (string)
+          variant={selectedCategory === category.id ? "default" : "outline"} 
           
-          // ⭐️ Passamos o ID (string) ou "all" para a função de mudança
-          onClick={() => onCategoryChange(category.id.toString())} 
-          className="transition-all"
+          // ⭐️ CORREÇÃO 4: Passamos category.id (string)
+          onClick={() => onCategoryChange(category.id)} 
+          className="transition-all whitespace-nowrap rounded-lg"
         >
-          {category.nome} {/* ⭐️ Usamos 'nome' em vez de 'name' */}
+          {/* ⭐️ CORREÇÃO CRÍTICA: Usamos 'name' da interface (que recebe o 'nome' do banco mapeado) */}
+          {category.name} 
         </Button>
       ))}
     </div>
