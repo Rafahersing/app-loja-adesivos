@@ -1,9 +1,0 @@
-name = "app-loja-adesivos"
-compatibility_date = "2025-10-13"
-
-[pages]
-api_directory = "functions"
-
-[vars]
-SUPABASE_URL = "https://prayctwxntid6ybvb.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByYXp5b2N4dHduaWRnYmpidnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMTA2MTAsImV4cCI6MjA3NTY4NjYxMH0.f9e6rpK1QU3vP2CsMuzDF1To3HX09FofNSwhcIRGuXc"
