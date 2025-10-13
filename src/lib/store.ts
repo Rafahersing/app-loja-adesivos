@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Product } from '@/types/product';
-import { supabase } from '@/lib/utils'; // Nota: usando 'utils' para o supabase, se estiver em 'lib/supabase', ajuste.
+import { supabase } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface CartItem extends Product {
@@ -72,7 +72,7 @@ export const useStore = create<StoreState>()(
               return;
           }
           
-          // ✅ Converte o ID numérico (BIGINT) do DB para STRING para o Zustand
+          // ✅ CORREÇÃO AQUI: Converte o ID numérico (BIGINT) do DB para STRING para o Zustand
           const productIds = data ? data.map(item => String(item.produto_id)) : []; 
           set({ favorites: productIds });
       },
@@ -84,7 +84,7 @@ export const useStore = create<StoreState>()(
             return;
         }
 
-        // ✅ Converte a string do frontend para Number (BIGINT) para o Supabase
+        // ✅ CORREÇÃO CRÍTICA: Converte a string do frontend para Number (BIGINT) para o Supabase
         const dbProductId = Number(productId); 
 
         if (isNaN(dbProductId) || !dbProductId) {
@@ -102,10 +102,10 @@ export const useStore = create<StoreState>()(
               .from('favoritos')
               .delete()
               .eq('usuario_id', userId)
-              .eq('produto_id', dbProductId); 
-
+              .eq('produto_id', dbProductId); // ✅ Usa Number
+          
           if (error) {
-              toast.error('Falha ao remover favorito do servidor.');
+              toast.error('Falha ao remover favorito do servidor. (Verifique RLS DELETE)');
               console.error('Erro DELETE Supabase (RLS):', error);
               return;
           }
@@ -119,11 +119,11 @@ export const useStore = create<StoreState>()(
               .from('favoritos')
               .insert({
                   usuario_id: userId,
-                  produto_id: dbProductId, 
+                  produto_id: dbProductId, // ✅ Usa Number
               });
 
           if (error) {
-              toast.error('Falha ao adicionar favorito ao servidor. (Verifique o RLS)');
+              toast.error('Falha ao adicionar favorito ao servidor. (Verifique RLS INSERT)');
               console.error('Erro INSERT Supabase (RLS):', error); 
               return;
           }
