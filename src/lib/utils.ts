@@ -9,6 +9,8 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
+// Supondo que as variáveis de ambiente VITE_PUBLIC_SUPABASE_URL e VITE_PUBLIC_SUPABASE_ANON_KEY 
+// estão definidas e acessíveis, conforme a imagem de variáveis de ambiente.
 const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -51,11 +53,10 @@ export async function fetchProducts() {
                 categoria_id,
                 categorias(nome) 
             ) 
-        `) // 🛑 Query SQL limpa - Removemos os comentários inline
+        `) // Query SQL limpa - Resolve o "Failed to parse select parameter"
         .order('titulo', { ascending: false });
 
     if (error) {
-        // O erro crítico na loja agora vai mostrar a mensagem correta.
         console.error("Erro ao buscar produtos:", error);
         throw new Error(`Erro Crítico ao carregar Dados: ${error.message}`);
     }
@@ -65,8 +66,10 @@ export async function fetchProducts() {
         const rawPrice = product.preco ? String(product.preco) : '0';
         
         // Extrai dados da categoria
+        // O produto favorito está ligado à categoria ID 26, cujo nome é "Semana | Domingo".
         const categoryData = product.produtos_categorias[0];
         const categoryId = categoryData?.categoria_id;
+        // O valor do nome deve ser 'Semana | Domingo' e não 'Geral'.
         const categoryName = categoryData?.categorias?.nome || ''; 
 
         return {
@@ -79,9 +82,12 @@ export async function fetchProducts() {
             imageUrlHighRes: product.url_imagem || '',
             createdAt: product.created_at,
             category_id: categoryId ? String(categoryId) : null, 
-            category: categoryName, // Agora com o nome real
+            category: categoryName, // Este deve ser o nome correto!
         };
     });
+
+    // 🛑 LOG DE DIAGNÓSTICO: Mostra o objeto que o front-end está recebendo
+    console.log("Produtos Mapeados (Verificar Categoria):", productsData);
 
     return productsData as Product[];
 }
@@ -119,7 +125,7 @@ export async function fetchProductById(id: string): Promise<Product | null> {
                 categoria_id,
                 categorias(nome)
             ) 
-        `) // 🛑 Query SQL limpa - Removemos os comentários inline
+        `) // Query SQL limpa
         .eq('id', dbProductId)
         .single(); 
 
