@@ -6,7 +6,7 @@ import { ProductCard } from "@/components/shop/ProductCard";
 import { CategoryFilter } from "@/components/shop/CategoryFilter";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
-import { fetchCategories, fetchProducts } from "@/lib/utils";
+import { fetchCategories, fetchProducts, slugify } from "@/lib/utils"; // Importa slugify
 import { Product, Category } from "@/types/product";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -15,7 +15,6 @@ const Shop = () => {
     const selectedCategory = searchParams.get("category") || "all";
     const searchQuery = searchParams.get("search") || "";
 
-    // Estado para armazenar dados reais do Supabase
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -36,11 +35,12 @@ const Shop = () => {
                     fetchProducts()
                 ]);
 
-                // Mapeamento de categorias para garantir o campo 'slug' (se não vier do banco)
+                // Mapeamento de categorias para garantir o campo 'slug'
                 const mappedCategories: Category[] = (fetchedCategories as any[]).map(cat => ({
                     id: cat.id,
-                    name: cat.nome, // Mapeando 'nome' do banco para 'name' da interface
-                    slug: cat.slug || cat.nome.toLowerCase().replace(/\s/g, '-'), // Gera slug se não tiver
+                    name: cat.nome,
+                    // Garante que o slug existe usando a função utilitária
+                    slug: cat.slug || slugify(cat.nome), 
                 }));
 
 
@@ -49,8 +49,14 @@ const Shop = () => {
 
             } catch (err) {
                 console.error("Erro ao carregar dados da loja:", err);
-                setError('Não foi possível carregar os produtos. Verifique sua conexão ou as permissões do Supabase (RLS).');
+                // ⭐️ CAPTURA MELHORADA: Usa a mensagem do erro lançado
+                setError(
+                    err instanceof Error 
+                        ? err.message 
+                        : 'Não foi possível carregar os produtos. Verifique RLS ou a query no Supabase.'
+                );
             } finally {
+                // ⭐️ GARANTIA: Define isLoading como false, independente do sucesso/erro
                 setIsLoading(false);
             }
         }
@@ -59,32 +65,27 @@ const Shop = () => {
     }, []);
     // --------------------------------------------------
 
-
+    // ... (handleCategoryChange, filteredProducts, handleAddToCart, handleToggleFavorite - Sem alterações)
     const handleCategoryChange = (category: string) => {
         const params = new URLSearchParams(searchParams);
         if (category === "all") {
             params.delete("category");
         } else {
-            // O parâmetro da URL será o UUID da categoria
             params.set("category", category); 
         }
         setSearchParams(params);
     };
 
-    // Lógica de Filtragem Corrigida: Usa category_id do produto
     const filteredProducts = useMemo(() => {
         let filtered = products;
 
-        // Filter by category: Usa o novo campo 'category_id'
         if (selectedCategory !== "all") {
-            // O selectedCategory é o UUID. Filtra o produto que tem o mesmo UUID
             filtered = filtered.filter((p) => p.category_id === selectedCategory);
         }
 
-        // Filter by search query: Usa 'title' (da interface Product)
         if (searchQuery) {
             filtered = filtered.filter((p) =>
-                p.title.toLowerCase().includes(searchQuery.toLowerCase()) // Usa 'title'
+                p.title.toLowerCase().includes(searchQuery.toLowerCase())
             );
         }
 
@@ -106,22 +107,27 @@ const Shop = () => {
         );
     };
 
+
     // --------------------------------------------------
     // Condições de exibição
     // --------------------------------------------------
     if (error) {
         return (
-            <div className="container mx-auto px-4 py-8 text-center text-red-500">
-                <h2>Erro ao carregar dados</h2>
-                <p>{error}</p>
-                <p className="mt-4 text-sm text-gray-500">
-                    Verifique as **Policies de RLS** das tabelas `produtos` e `categorias` no Supabase.
+            <div className="container mx-auto px-4 py-8 text-center bg-red-50 border border-red-200 p-6 rounded-lg">
+                <h2 className="text-xl font-bold text-red-700 mb-4">Erro Crítico ao Carregar Dados</h2>
+                <p className="text-red-600 mb-4">{error}</p>
+                <p className="mt-4 text-sm text-gray-700 font-semibold">
+                    AÇÃO NECESSÁRIA: Verifique as **Policies de RLS** (Row Level Security) das tabelas `produtos` e `categorias` no Supabase para garantir que usuários anônimos (ou o perfil logado) possam ler os dados.
+                </p>
+                <p className="text-sm text-gray-500">
+                    O erro de `RLS` não é capturado automaticamente como erro de código, mas impede que os dados sejam retornados.
                 </p>
             </div>
         );
     }
 
     if (isLoading) {
+        // ... (Seus Skeletons - Mantidos)
         return (
             <div className="container mx-auto px-4 py-8">
                 <h1 className="text-4xl font-bold mb-8">Explorar Imagens</h1>
@@ -182,7 +188,8 @@ const Shop = () => {
             ) : (
                 <div className="text-center py-20">
                     <p className="text-xl text-muted-foreground mb-4">
-                        Nenhum produto encontrado
+                        {/* ⭐️ MENSAGEM CHAVE: Se não há erro e o array está vazio, significa que a busca retornou 0 produtos */}
+                        Nenhum produto encontrado. Verifique se há produtos na tabela 'produtos' no Supabase.
                     </p>
                     <Link
                         to="/shop"
