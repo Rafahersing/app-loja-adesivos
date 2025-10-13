@@ -13,40 +13,34 @@ export function cn(...inputs: ClassValue[]) {
 // Configuração do Supabase
 // ----------------------------------------------------------------------
 
-// 1. URL do Projeto
 const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
-
-// 2. Chave de API
 const supabaseAnonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 
-// Cria e exporta o cliente Supabase
 export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as string);
 
 // ----------------------------------------------------------------------
-// Funções de Busca de Dados (Shop)
+// Funções de Busca de Dados (Shop) - AGORA LANÇAM ERROS
 // ----------------------------------------------------------------------
 
 /**
  * Busca todas as categorias do Supabase.
- * @returns Um array de objetos de categoria ou um array vazio em caso de erro.
+ * @returns Um array de objetos de categoria.
  */
 export async function fetchCategories() {
     const { data, error } = await supabase
-        .from('categorias') // Tabela de categorias
-        .select('id, nome') // 'slug' será calculado no front ou você deve adicioná-lo ao select se existir no banco
-        .order('nome', { ascending: true }); // Ordena por nome
+        .from('categorias')
+        .select('id, nome') 
+        .order('nome', { ascending: true });
 
     if (error) {
-        console.error('Erro ao buscar categorias:', error);
-        return [];
+        // ⭐️ DIAGNÓSTICO: Lança o erro para o frontend capturar
+        throw new Error(`Erro ao buscar categorias: ${error.message}`);
     }
-    // Retorna os dados, a tipagem no front fará o mapeamento
     return data;
 }
 
 /**
  * Busca todos os produtos.
- * AJUSTADO: Usa 'url_imagem' e garante que 'preco' seja um número.
  * @returns Um array de objetos de produto mapeado para a interface Product.
  */
 export async function fetchProducts() {
@@ -64,22 +58,19 @@ export async function fetchProducts() {
         .order('titulo', { ascending: false });
 
     if (error) {
-        console.error('Erro ao buscar produtos:', error);
-        return [];
+        // ⭐️ DIAGNÓSTICO: Lança o erro para o frontend capturar
+        throw new Error(`Erro ao buscar produtos: ${error.message}`);
     }
 
-    // AJUSTE CRÍTICO DE MAPEAMENTO: Proteção contra 'null' em price e mapeamento de campos.
+    // Mapeamento com proteção para 'price'
     const productsData = data.map((product: any) => ({
-        // Mapeamento snake_case (DB) -> camelCase (Frontend Interface)
         id: product.id,
         title: product.titulo,
         description: product.descricao,
-        // ⭐️ CORREÇÃO DO ERRO: Garante que 'price' seja um número.
-        price: parseFloat(product.preco) || 0, 
+        price: parseFloat(product.preco) || 0, // Correção do erro toFixed
         imageUrl: product.url_imagem || '', 
-        imageUrlHighRes: product.url_imagem || '', // Usando a mesma URL
+        imageUrlHighRes: product.url_imagem || '',
         createdAt: product.created_at,
-        // Assume que só há uma categoria por produto para o filtro de loja (1:N virtual)
         category_id: product.produtos_categorias[0]?.categoria_id || null, 
         category: '', 
     }));
