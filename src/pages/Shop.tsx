@@ -12,7 +12,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const Shop = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    // Assume que o parâmetro é o UUID da categoria
     const selectedCategory = searchParams.get("category") || "all";
     const searchQuery = searchParams.get("search") || "";
 
@@ -32,7 +31,6 @@ const Shop = () => {
             setIsLoading(true);
             setError(null);
             try {
-                // As funções de fetch agora retornam a tipagem correta
                 const [fetchedCategories, fetchedProducts] = await Promise.all([
                     fetchCategories(),
                     fetchProducts()
@@ -41,8 +39,8 @@ const Shop = () => {
                 // Mapeamento de categorias para garantir o campo 'slug' (se não vier do banco)
                 const mappedCategories: Category[] = (fetchedCategories as any[]).map(cat => ({
                     id: cat.id,
-                    name: cat.nome,
-                    slug: cat.slug || cat.nome.toLowerCase().replace(/\s/g, '-'), // Use slugify se precisar
+                    name: cat.nome, // Mapeando 'nome' do banco para 'name' da interface
+                    slug: cat.slug || cat.nome.toLowerCase().replace(/\s/g, '-'), // Gera slug se não tiver
                 }));
 
 
@@ -51,7 +49,6 @@ const Shop = () => {
 
             } catch (err) {
                 console.error("Erro ao carregar dados da loja:", err);
-                // O erro agora é capturado no fetchProducts e propagado com throw
                 setError('Não foi possível carregar os produtos. Verifique sua conexão ou as permissões do Supabase (RLS).');
             } finally {
                 setIsLoading(false);
@@ -87,7 +84,7 @@ const Shop = () => {
         // Filter by search query: Usa 'title' (da interface Product)
         if (searchQuery) {
             filtered = filtered.filter((p) =>
-                p.title.toLowerCase().includes(searchQuery.toLowerCase())
+                p.title.toLowerCase().includes(searchQuery.toLowerCase()) // Usa 'title'
             );
         }
 
@@ -100,7 +97,6 @@ const Shop = () => {
         toast.success(`${product.title} adicionado ao carrinho!`);
     };
 
-    // Função de favorito ajustada para usar a string UUID diretamente
     const handleToggleFavorite = (productId: string) => {
         toggleFavorite(productId);
         toast.success(
@@ -178,7 +174,6 @@ const Shop = () => {
                             product={product}
                             categories={categories}
                             onAddToCart={() => handleAddToCart(product)}
-                            // O ID do produto é uma string UUID, não precisa de .toString()
                             onToggleFavorite={() => handleToggleFavorite(product.id)}
                             isFavorite={isFavorite(product.id)}
                         />
