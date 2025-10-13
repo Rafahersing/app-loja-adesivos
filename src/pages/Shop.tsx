@@ -38,8 +38,9 @@ const Shop = () => {
                 // Mapeamento de categorias para garantir o campo 'slug'
                 const mappedCategories: Category[] = (fetchedCategories as any[]).map(cat => ({
                     id: cat.id,
-                    name: cat.nome,
+                    name: cat.nome, // ⭐️ GARANTIA: Mapeando 'nome' do banco para 'name' da interface
                     slug: cat.slug || slugify(cat.nome), 
+                })); 
                 }));
 
 
