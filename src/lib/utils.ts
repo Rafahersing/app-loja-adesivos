@@ -3,7 +3,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { createClient } from '@supabase/supabase-js';
-import { Product } from "@/types/product"; // Assumindo este import
+import { Product } from "@/types/product";
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -28,13 +28,16 @@ export async function fetchCategories() {
         throw new Error(`Erro ao buscar categorias: ${error.message}`);
     }
     
-    // ✅ GARANTIA: Converte o ID da categoria para STRING
+    // ✅ CORREÇÃO DE TIPAGEM: Garante que o ID da categoria seja STRING
     return data.map(cat => ({
         ...cat,
-        id: String(cat.id), 
+        id: String(cat.id), 
     })); 
 }
 
+/**
+ * Busca todos os produtos com as informações da categoria.
+ */
 export async function fetchProducts() {
     const { data, error } = await supabase
         .from('produtos')
@@ -45,7 +48,11 @@ export async function fetchProducts() {
             url_imagem, 
             descricao,
             created_at,
-            produtos_categorias!inner(categoria_id) 
+            // ⭐️ ATUALIZAÇÃO CRÍTICA: Faz JOIN para buscar o NOME da categoria ⭐️
+            produtos_categorias!inner(
+                categoria_id,
+                categorias(nome) 
+            ) 
         `) 
         .order('titulo', { ascending: false });
 
@@ -53,12 +60,18 @@ export async function fetchProducts() {
         throw new Error(`Erro ao buscar produtos: ${error.message}`);
     }
 
-    // ✅ CORREÇÃO CRÍTICA: Mapeamento que converte IDS para STRING
+    // Mapeamento que ALINHA DB com Interface e CONVERTE IDS para STRING
     const productsData = (data || []).map((product: any) => {
         const rawPrice = product.preco ? String(product.preco) : '0';
+        
+        // Extrai dados da categoria
+        const categoryData = product.produtos_categorias[0];
+        const categoryId = categoryData?.categoria_id;
+        const categoryName = categoryData?.categorias?.nome || ''; // Retorna '' se não encontrar
 
         return {
-            id: String(product.id),  // Essencial para o Favorites.tsx
+            // ✅ CORREÇÃO DE TIPAGEM: ID do produto para STRING
+            id: String(product.id), 
             title: product.titulo || 'Produto Sem Título',
             description: product.descricao || '',
             price: parseFloat(rawPrice) || 0, 
@@ -66,8 +79,10 @@ export async function fetchProducts() {
             imageUrl: product.url_imagem || '', 
             imageUrlHighRes: product.url_imagem || '',
             createdAt: product.created_at,
-            category_id: product.produtos_categorias[0]?.categoria_id ? String(product.produtos_categorias[0].categoria_id) : null, 
-            category: '', 
+            // ✅ CORREÇÃO DE TIPAGEM: ID da categoria para STRING
+            category_id: categoryId ? String(categoryId) : null, 
+            // ⭐️ NOVO: Usa o nome da categoria buscado no JOIN ⭐️
+            category: categoryName, 
         };
     });
 
@@ -87,8 +102,14 @@ export const slugify = (text: string): string => {
         .replace(/\-\-+/g, '-');
 };
 
+/**
+ * Busca um único produto pelo seu ID (string) no Supabase.
+ * @param id O ID do produto (deve ser a string do BIGINT).
+ * @returns O objeto Product ou null se não for encontrado.
+ */
 export async function fetchProductById(id: string): Promise<Product | null> {
     
+    // ✅ CORREÇÃO DE TIPAGEM: Converte para NUMBER para a QUERY no Supabase
     const dbProductId = Number(id);
 
     const { data, error } = await supabase
@@ -100,9 +121,13 @@ export async function fetchProductById(id: string): Promise<Product | null> {
             url_imagem, 
             descricao,
             created_at,
-            produtos_categorias!inner(categoria_id) 
+            // ⭐️ ATUALIZAÇÃO: Inclui JOIN para categorias também aqui ⭐️
+            produtos_categorias!inner(
+                categoria_id,
+                categorias(nome)
+            ) 
         `) 
-        .eq('id', dbProductId) // Usa o ID como NUMBER (BIGINT) na query
+        .eq('id', dbProductId) // Usa o ID convertido (NUMBER)
         .single(); 
 
     if (error && error.code !== 'PGRST116') {
@@ -114,18 +139,26 @@ export async function fetchProductById(id: string): Promise<Product | null> {
         return null;
     }
 
+    // Mapeamento do DB para a interface Product
     const product: any = data;
     const rawPrice = product.preco ? String(product.preco) : '0';
+    
+    // Extrai dados da categoria
+    const categoryData = product.produtos_categorias[0];
+    const categoryId = categoryData?.categoria_id;
+    const categoryName = categoryData?.categorias?.nome || '';
 
     return {
-        id: String(product.id), // Garante que o retorno é STRING
+        // ✅ CORREÇÃO DE TIPAGEM: Garante que o ID final seja STRING
+        id: String(product.id),
         title: product.titulo || 'Produto Sem Título',
         description: product.descricao || '',
         price: parseFloat(rawPrice) || 0, 
         imageUrl: product.url_imagem || '', 
         imageUrlHighRes: product.url_imagem || '',
         createdAt: product.created_at,
-        category_id: product.produtos_categorias[0]?.categoria_id ? String(product.produtos_categorias[0].categoria_id) : null, 
-        category: '', 
+        category_id: categoryId ? String(categoryId) : null, 
+        // ⭐️ NOVO: Usa o nome da categoria buscado no JOIN ⭐️
+        category: categoryName, 
     } as Product;
 }
