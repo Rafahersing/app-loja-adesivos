@@ -33,7 +33,6 @@ export async function fetchCategories() {
         .order('nome', { ascending: true });
 
     if (error) {
-        // ⭐️ DIAGNÓSTICO: Lança o erro para o frontend capturar
         throw new Error(`Erro ao buscar categorias: ${error.message}`);
     }
     return data;
@@ -41,6 +40,7 @@ export async function fetchCategories() {
 
 /**
  * Busca todos os produtos.
+ * AJUSTADO: Usa 'url_imagem' e garante que 'preco' seja um número.
  * @returns Um array de objetos de produto mapeado para a interface Product.
  */
 export async function fetchProducts() {
@@ -58,22 +58,29 @@ export async function fetchProducts() {
         .order('titulo', { ascending: false });
 
     if (error) {
-        // ⭐️ DIAGNÓSTICO: Lança o erro para o frontend capturar
         throw new Error(`Erro ao buscar produtos: ${error.message}`);
     }
 
-    // Mapeamento com proteção para 'price'
-    const productsData = data.map((product: any) => ({
-        id: product.id,
-        title: product.titulo,
-        description: product.descricao,
-        price: parseFloat(product.preco) || 0, // Correção do erro toFixed
-        imageUrl: product.url_imagem || '', 
-        imageUrlHighRes: product.url_imagem || '',
-        createdAt: product.created_at,
-        category_id: product.produtos_categorias[0]?.categoria_id || null, 
-        category: '', 
-    }));
+    // AJUSTE CRÍTICO DE MAPEAMENTO: Proteção contra 'null' em price e mapeamento de campos.
+    const productsData = data.map((product: any) => {
+        // Proteção 1: Garante que 'preco' seja uma string antes de tentar parseFloat
+        const rawPrice = product.preco ? String(product.preco) : '0';
+
+        return {
+            // Mapeamento snake_case (DB) -> camelCase (Frontend Interface)
+            id: product.id,
+            title: product.titulo || 'Produto Sem Título',
+            description: product.descricao || '',
+            // Proteção 2: Garante que o resultado seja um número (0 se falhar)
+            price: parseFloat(rawPrice) || 0, 
+            
+            imageUrl: product.url_imagem || '', 
+            imageUrlHighRes: product.url_imagem || '',
+            createdAt: product.created_at,
+            category_id: product.produtos_categorias[0]?.categoria_id || null, 
+            category: '', 
+        };
+    });
 
     return productsData;
 }
