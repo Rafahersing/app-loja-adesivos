@@ -8,10 +8,7 @@ import { Separator } from "@/components/ui/separator";
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity } = useStore();
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const itemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-  if (cart.length === 0) {
+   if (cart.length === 0) {
     return (
       <div className="container mx-auto px-4 py-20">
         <div className="mx-auto max-w-md text-center">
