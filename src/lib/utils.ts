@@ -19,14 +19,15 @@ export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as s
 
 export async function fetchCategories() {
     const { data, error } = await supabase
-        .from('categorias')
-        .select('id, nome') 
-        .order('nome', { ascending: true });
+        .from('categorias') // Tabela de categorias
+        .select('id, nome') // ⭐️ GARANTIA: Deve selecionar 'nome'
+        .order('nome', { ascending: true }); 
 
     if (error) {
         throw new Error(`Erro ao buscar categorias: ${error.message}`);
     }
-    return data;
+    // O retorno (data) contém 'id' e 'nome'.
+    return data; 
 }
 
 export async function fetchProducts() {
