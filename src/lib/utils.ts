@@ -19,16 +19,7 @@ const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
 // 2. Chave de API
 const supabaseAnonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 
-// ⭐️ ATUALIZAÇÃO CRÍTICA: BLOCO DE ERRO COMENTADO ⭐️
-// Isto impede que o módulo quebre a aplicação se as variáveis de ambiente
-// não estiverem carregadas, restaurando a página de categorias.
-/*
-if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-        'As chaves do Supabase (URL e/ou ANON_KEY) não foram encontradas. Verifique as variáveis de ambiente (Vercel) e o prefixo (VITE_PUBLIC_ / NEXT_PUBLIC_).'
-    );
-}
-*/
+// Bloco de erro removido (conforme sua solicitação)
 
 // Cria e exporta o cliente Supabase
 export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as string);
@@ -44,47 +35,57 @@ export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as s
 export async function fetchCategories() {
     const { data, error } = await supabase
         .from('categorias') // Tabela de categorias
-        .select('id, nome, descricao') 
+        .select('id, nome') // 'slug' será calculado no front ou você deve adicioná-lo ao select se existir no banco
         .order('nome', { ascending: true }); // Ordena por nome
 
     if (error) {
         console.error('Erro ao buscar categorias:', error);
         return [];
     }
-    // Retorna os dados diretamente, pois o Products.tsx espera 'name' e 'slug'
+    // Retorna os dados, a tipagem no front fará o mapeamento
     return data;
 }
 
 /**
- * Busca todos os produtos e o ID da categoria, usando a tabela de junção.
+ * Busca todos os produtos e o ID da categoria.
+ * AJUSTADO: Usa 'url_imagem' e assume que a tabela de junção ainda existe (produtos_categorias).
  * @returns Um array de objetos de produto ou um array vazio em caso de erro.
  */
 export async function fetchProducts() {
     const { data, error } = await supabase
         .from('produtos')
-        // ⭐️ Seleciona todas as colunas do produto (incluindo 'descricao') e o JOIN na junção
+        // ⭐️ AJUSTADO: Seleciona 'url_imagem' em vez de 'imagem_url' (usando o nome do banco).
+        // Manter o JOIN se a relação N:N foi mantida
         .select(`
             id, 
-            nome, 
+            titulo, 
             preco, 
-            imagem_url, 
+            url_imagem, 
             descricao,
+            created_at,
             produtos_categorias!inner(categoria_id) 
         `) 
-        .order('nome', { ascending: false }); // Ordena por nome
+        .order('titulo', { ascending: false }); // Usando 'titulo' do banco
 
     if (error) {
         console.error('Erro ao buscar produtos:', error);
         return [];
     }
 
-    // ⭐️ O Supabase retorna dados aninhados. "Achatar" o resultado:
-    // Transforma: { ..., produtos_categorias: [{ categoria_id: <ID> }] }
-    // Em: { ..., category_id: <ID> }
+    // ⭐️ AJUSTE DE MAPEAMENTO: Transforma o resultado do Supabase para o formato da interface Product.
     const productsData = data.map((product: any) => ({
-        ...product,
-        // Garante que o ID da categoria, que é o ID real do Supabase (uuid), seja extraído:
-        category_id: product.produtos_categorias[0]?.categoria_id || null
+        // Mapeamento snake_case (DB) -> camelCase (Frontend Interface)
+        id: product.id,
+        title: product.titulo, // DB: titulo -> Front: title
+        description: product.descricao,
+        price: parseFloat(product.preco) || 0,
+        imageUrl: product.url_imagem || '', // DB: url_imagem -> Front: imageUrl
+        imageUrlHighRes: product.url_imagem || '', // Usando a mesma URL
+        createdAt: product.created_at,
+        // Assume que só há uma categoria por produto para o filtro de loja (1:N virtual)
+        category_id: product.produtos_categorias[0]?.categoria_id || null, 
+        // category será o nome/slug da categoria, mas o card e o filtro usam 'category_id'
+        category: '', 
     }));
 
     return productsData;
