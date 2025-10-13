@@ -19,8 +19,6 @@ const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
 // 2. Chave de API
 const supabaseAnonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
 
-// Bloco de erro removido (conforme sua solicitação)
-
 // Cria e exporta o cliente Supabase
 export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as string);
 
@@ -47,15 +45,13 @@ export async function fetchCategories() {
 }
 
 /**
- * Busca todos os produtos e o ID da categoria.
- * AJUSTADO: Usa 'url_imagem' e assume que a tabela de junção ainda existe (produtos_categorias).
- * @returns Um array de objetos de produto ou um array vazio em caso de erro.
+ * Busca todos os produtos.
+ * AJUSTADO: Usa 'url_imagem' e garante que 'preco' seja um número.
+ * @returns Um array de objetos de produto mapeado para a interface Product.
  */
 export async function fetchProducts() {
     const { data, error } = await supabase
         .from('produtos')
-        // ⭐️ AJUSTADO: Seleciona 'url_imagem' em vez de 'imagem_url' (usando o nome do banco).
-        // Manter o JOIN se a relação N:N foi mantida
         .select(`
             id, 
             titulo, 
@@ -65,26 +61,26 @@ export async function fetchProducts() {
             created_at,
             produtos_categorias!inner(categoria_id) 
         `) 
-        .order('titulo', { ascending: false }); // Usando 'titulo' do banco
+        .order('titulo', { ascending: false });
 
     if (error) {
         console.error('Erro ao buscar produtos:', error);
         return [];
     }
 
-    // ⭐️ AJUSTE DE MAPEAMENTO: Transforma o resultado do Supabase para o formato da interface Product.
+    // AJUSTE CRÍTICO DE MAPEAMENTO: Proteção contra 'null' em price e mapeamento de campos.
     const productsData = data.map((product: any) => ({
         // Mapeamento snake_case (DB) -> camelCase (Frontend Interface)
         id: product.id,
-        title: product.titulo, // DB: titulo -> Front: title
+        title: product.titulo,
         description: product.descricao,
-        price: parseFloat(product.preco) || 0,
-        imageUrl: product.url_imagem || '', // DB: url_imagem -> Front: imageUrl
+        // ⭐️ CORREÇÃO DO ERRO: Garante que 'price' seja um número.
+        price: parseFloat(product.preco) || 0, 
+        imageUrl: product.url_imagem || '', 
         imageUrlHighRes: product.url_imagem || '', // Usando a mesma URL
         createdAt: product.created_at,
         // Assume que só há uma categoria por produto para o filtro de loja (1:N virtual)
         category_id: product.produtos_categorias[0]?.categoria_id || null, 
-        // category será o nome/slug da categoria, mas o card e o filtro usam 'category_id'
         category: '', 
     }));
 
