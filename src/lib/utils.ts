@@ -27,15 +27,14 @@ export async function fetchCategories() {
     if (error) {
         throw new Error(`Erro ao buscar categorias: ${error.message}`);
     }
-    
-    // ⭐️ GARANTIA: Converte o ID da categoria para STRING, se for BIGINT no DB
-    return data.map(cat => ({
-        ...cat,
-        id: String(cat.id), // Se o id da categoria for BIGINT
-    })); 
+    
+    // ✅ GARANTIA: Converte o ID da categoria para STRING
+    return data.map(cat => ({
+        ...cat,
+        id: String(cat.id), 
+    })); 
 }
 
-// ⭐️ FUNÇÃO fetchProducts CORRIGIDA ⭐️
 export async function fetchProducts() {
     const { data, error } = await supabase
         .from('produtos')
@@ -54,13 +53,12 @@ export async function fetchProducts() {
         throw new Error(`Erro ao buscar produtos: ${error.message}`);
     }
 
-    // Mapeamento que ALINHA DB com Interface e CONVERTE IDS para STRING
+    // ✅ CORREÇÃO CRÍTICA: Mapeamento que converte IDS para STRING
     const productsData = (data || []).map((product: any) => {
         const rawPrice = product.preco ? String(product.preco) : '0';
 
         return {
-            // ✅ CORREÇÃO CRÍTICA: Converte o ID do produto (BIGINT) para STRING
-            id: String(product.id), 
+            id: String(product.id),  // Essencial para o Favorites.tsx
             title: product.titulo || 'Produto Sem Título',
             description: product.descricao || '',
             price: parseFloat(rawPrice) || 0, 
@@ -68,7 +66,6 @@ export async function fetchProducts() {
             imageUrl: product.url_imagem || '', 
             imageUrlHighRes: product.url_imagem || '',
             createdAt: product.created_at,
-            // ✅ CORREÇÃO: Converte o ID da categoria (BIGINT) para STRING
             category_id: product.produtos_categorias[0]?.categoria_id ? String(product.produtos_categorias[0].categoria_id) : null, 
             category: '', 
         };
@@ -90,16 +87,9 @@ export const slugify = (text: string): string => {
         .replace(/\-\-+/g, '-');
 };
 
-// ⭐️ FUNÇÃO fetchProductById CORRIGIDA ⭐️
-/**
- * Busca um único produto pelo seu ID (string) no Supabase.
- * @param id O ID do produto (deve ser a string do BIGINT).
- * @returns O objeto Product ou null se não for encontrado.
- */
 export async function fetchProductById(id: string): Promise<Product | null> {
-    
-    // ✅ CORREÇÃO: Converte o ID para NUMBER (BIGINT) para a QUERY no Supabase
-    const dbProductId = Number(id);
+    
+    const dbProductId = Number(id);
 
     const { data, error } = await supabase
         .from('produtos')
@@ -112,8 +102,8 @@ export async function fetchProductById(id: string): Promise<Product | null> {
             created_at,
             produtos_categorias!inner(categoria_id) 
         `) 
-        .eq('id', dbProductId) // ⭐️ Usa o ID convertido (NUMBER)
-        .single(); 
+        .eq('id', dbProductId) // Usa o ID como NUMBER (BIGINT) na query
+        .single(); 
 
     if (error && error.code !== 'PGRST116') {
         console.error("Erro ao buscar produto por ID:", error);
@@ -124,13 +114,11 @@ export async function fetchProductById(id: string): Promise<Product | null> {
         return null;
     }
 
-    // ⭐️ Mapeamento do DB para a interface Product
     const product: any = data;
     const rawPrice = product.preco ? String(product.preco) : '0';
 
     return {
-        // ✅ CORREÇÃO: Garante que o ID final seja STRING
-        id: String(product.id),
+        id: String(product.id), // Garante que o retorno é STRING
         title: product.titulo || 'Produto Sem Título',
         description: product.descricao || '',
         price: parseFloat(rawPrice) || 0, 
