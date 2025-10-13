@@ -1,75 +1,78 @@
 // src/pages/Favorites.tsx
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
-import { fetchProducts } from '@/lib/utils';
+// ✅ IMPORTAÇÃO CORRETA: Trocamos fetchProducts por fetchFavoriteProducts
+import { fetchFavoriteProducts } from '@/lib/utils';
 import { Product } from '@/types/product';
 import { ProductCard } from '@/components/shop/ProductCard';
 import { Link } from 'react-router-dom';
 import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/lib/auth'; // ⭐️ IMPORTADO: Para pegar o userId
+import { useAuth } from '@/lib/auth';
+import { toast } from 'sonner'; // Adicionado para a função handleToggleFavorite
 
 const Favorites = () => {
-    const { user } = useAuth(); // ⭐️ PEGA O USUÁRIO LOGADO ⭐️
+    // Pegamos o ID do usuário (necessário para buscar apenas OS favoritos DELE)
+    const { user } = useAuth();
     const { favorites, isFavorite, toggleFavorite, addToCart } = useStore();
     const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // LÓGICA DE BUSCA DOS PRODUTOS COMPLETOS
+    // LÓGICA DE BUSCA DOS PRODUTOS FAVORITOS
     useEffect(() => {
-        if (favorites.length === 0) {
-            setFavoriteProducts([]);
-            setIsLoading(false);
-            return;
+        // Se o usuário não estiver logado ou não tivermos o ID, não tentamos buscar.
+        // O caso de favorites.length === 0 será tratado pela nova função, 
+        // mas é bom ter uma verificação inicial.
+        if (!user || !user.id) {
+             setIsLoading(false);
+             // Podemos até setar um erro se o componente for renderizado em estado deslogado
+             // setError("Você precisa estar logado para ver seus favoritos.");
+             return; 
         }
 
         async function loadFavoriteProducts() {
             setIsLoading(true);
             setError(null);
             try {
-                // 1. Busca TODOS os produtos
-                const allProducts = await fetchProducts();
+                // 🛑 CORREÇÃO AQUI: Usamos a nova função que faz o filtro e a busca com JOIN no DB.
+                // Esta busca APENAS os 3 produtos (28, 29, 30) e traz a categoria correta.
+                const products = await fetchFavoriteProducts(user.id);
                 
-                // 2. Filtra APENAS os produtos que estão na lista 'favorites'
-                const filtered = (allProducts as Product[]).filter(product => 
-                    // Compara product.id (string) com favorites (string[])
-                    favorites.includes(product.id) 
-                );
-                
-                setFavoriteProducts(filtered);
+                // Não é mais necessário o filtro no frontend
+                setFavoriteProducts(products);
             } catch (err) {
                 console.error("Erro ao carregar detalhes dos favoritos:", err);
-                setError("Não foi possível carregar os detalhes dos seus produtos favoritos. (Verifique o RLS da tabela 'produtos')");
+                // Mensagem mais informativa
+                setError("Não foi possível carregar os detalhes dos seus produtos favoritos. (Verifique o RLS nas tabelas 'produtos' e 'categorias' ou a conexão)");
             } finally {
                 setIsLoading(false);
             }
         }
 
+        // ⭐️ Rodamos a busca quando o usuário ou a lista de IDs de favoritos mudar
         loadFavoriteProducts();
         
-    }, [favorites]); 
+    }, [user?.id, favorites]); // Dependemos do ID do usuário e da lista de IDs de favoritos
 
 
     const handleToggleFavorite = (productId: string) => {
         if (!user || !user.id) {
-            // Este caso só deve ocorrer se o usuário deslogar nesta página
             toast.error("Você precisa estar logado para gerenciar favoritos.");
             return;
         }
         
-        // ⭐️ CHAMA O STORE COM O ID CORRETO ⭐️
+        // Chama o store com o ID correto (aqui já estava certo)
         toggleFavorite(productId, user.id);
     };
 
-    // ... (restante da renderização, mantida da última vez) ...
     // --------------------------------------------------
     // Renderização
     // --------------------------------------------------
     if (error) {
-         return <div className="text-center py-20 text-red-500">{error}</div>;
+        return <div className="text-center py-20 text-red-500">{error}</div>;
     }
 
     if (isLoading) {
@@ -84,6 +87,7 @@ const Favorites = () => {
         );
     }
     
+    // Agora 'favoriteProducts' só contém os itens favoritos do DB
     if (favoriteProducts.length === 0) {
         return (
             <div className="text-center py-20">
