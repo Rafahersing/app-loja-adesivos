@@ -16,6 +16,8 @@ export interface Product {
 export type Category = {
 	id: string; // UUID da categoria
 	name: string; // Mapeado de 'nome' do banco (usado para exibição do filtro)
+    // ⭐️ NOVO: Campo para identificar o pai (null para categorias principais)
+    parent_id: string | null; 
 	slug: string; // Usado para URL ou rotas, se necessário
 };
 
