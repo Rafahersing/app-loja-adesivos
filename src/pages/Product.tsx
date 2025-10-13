@@ -1,47 +1,119 @@
+// src/pages/Product.tsx
+
 import { useParams, useNavigate } from "react-router-dom";
 import { Heart, ShoppingCart, ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MOCK_PRODUCTS } from "@/lib/mockData";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
+import { fetchProductById } from "@/lib/utils"; // ⭐️ Importa a função de busca do Supabase
+import { Product as ProductType } from "@/types/product"; // ⭐️ Importa a tipagem do produto
+import { Skeleton } from "@/components/ui/skeleton"; // Importa o componente Skeleton
 
 const Product = () => {
-  const { id } = useParams();
+  // O ID na URL é o UUID (string)
+  const { id: productId } = useParams<{ id: string }>(); 
   const navigate = useNavigate();
   const { addToCart, toggleFavorite, isFavorite } = useStore();
 
-  const product = MOCK_PRODUCTS.find((p) => p.id === id);
+  // ⭐️ Estados para gerenciar os dados dinâmicos
+  const [product, setProduct] = useState<ProductType | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!product) {
-    return (
-      <div className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-3xl font-bold mb-4">Produto não encontrado</h1>
-        <Button onClick={() => navigate("/shop")}>Voltar para a loja</Button>
-      </div>
-    );
-  }
+  // --------------------------------------------------
+  // Efeito para Carregar o Produto
+  // --------------------------------------------------
+  useEffect(() => {
+    if (!productId) {
+      setError("ID do produto não especificado na URL.");
+      setIsLoading(false);
+      return;
+    }
+
+    async function loadProduct() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const fetchedProduct = await fetchProductById(productId);
+        setProduct(fetchedProduct);
+
+        if (!fetchedProduct) {
+          setError("Produto não encontrado.");
+        }
+      } catch (err) {
+        console.error("Erro ao carregar o produto:", err);
+        setError("Erro ao buscar o produto. Tente novamente mais tarde.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadProduct();
+  }, [productId]); // Recarrega se o ID na URL mudar
+  // --------------------------------------------------
+
 
   const handleAddToCart = () => {
-    addToCart(product);
-    toast.success("Produto adicionado ao carrinho!");
+    if (product) {
+      addToCart(product);
+      toast.success(`${product.title} adicionado ao carrinho!`);
+    }
   };
 
   const handleToggleFavorite = () => {
-    toggleFavorite(product.id);
-    toast.success(
-      isFavorite(product.id)
-        ? "Removido dos favoritos"
-        : "Adicionado aos favoritos!"
-    );
+    if (product) {
+      toggleFavorite(product.id);
+      toast.success(
+        isFavorite(product.id)
+          ? "Removido dos favoritos"
+          : "Adicionado aos favoritos!"
+      );
+    }
   };
 
+  // --------------------------------------------------
+  // Condições de exibição
+  // --------------------------------------------------
+
+  if (isLoading) {
+    return (
+        <div className="container mx-auto px-4 py-8">
+            <Skeleton className="h-6 w-32 mb-8" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <Skeleton className="h-[500px] w-full rounded-xl" />
+                <div className="space-y-6">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-6 w-1/4" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                </div>
+            </div>
+        </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="container mx-auto px-4 py-20 text-center">
+        <h1 className="text-3xl font-bold mb-4">{error || "Produto não encontrado"}</h1>
+        <Button onClick={() => navigate("/shop")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar para a loja
+        </Button>
+      </div>
+    );
+  }
+  
+  // O código a partir daqui só roda se product for válido
   return (
     <div className="container mx-auto px-4 py-8">
       <Button
         variant="ghost"
         onClick={() => navigate("/shop")}
-        className="mb-6"
+        className="mb-6 pl-0"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
         Voltar para a loja
@@ -58,7 +130,8 @@ const Product = () => {
           </div>
           
           <img
-            src={product.imageUrlHighRes}
+            // ⭐️ Usamos product.imageUrlHighRes, que é esperado pela sua interface
+            src={product.imageUrlHighRes || product.imageUrl} 
             alt={product.title}
             className="h-full w-full object-cover"
           />
@@ -68,10 +141,11 @@ const Product = () => {
         <div className="space-y-6">
           <div className="space-y-3">
             <Badge variant="secondary" className="text-sm">
-              {product.category}
+              {/* ⭐️ Se tiver o nome da categoria, use. Senão, 'Geral' */}
+              {product.category || 'Geral'} 
             </Badge>
             <h1 className="text-4xl font-bold">{product.title}</h1>
-            <p className="text-xl text-muted-foreground">
+            <p className="text-xl text-muted-foreground whitespace-pre-line">
               {product.description}
             </p>
           </div>
@@ -87,6 +161,7 @@ const Product = () => {
           <div className="space-y-4">
             <h3 className="font-semibold">Especificações:</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
+              {/* Mantido hardcoded, pois esses detalhes não vieram do DB */}
               <li className="flex items-center gap-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                 Resolução: 1920x1920 pixels
