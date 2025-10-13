@@ -1,16 +1,13 @@
 name = "app-loja-adesivos"
 compatibility_date = "2025-10-13"
 
-# diretório onde o build do frontend é gerado
+# Pasta final do build do frontend (por exemplo, Vite, React, etc.)
 pages_build_output_dir = "dist"
 
-# ambiente das Pages com suporte a Functions
 [pages]
-# aqui é onde ficam suas funções serverless
-# (exemplo: /functions/api.js ou /functions/hello.js)
+# Diretório onde ficam suas funções backend (serverless)
 api_directory = "functions"
 
-# variáveis de ambiente opcionais
 [vars]
 SUPABASE_URL = "https://prayctwxntid6ybvb.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
