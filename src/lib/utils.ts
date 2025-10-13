@@ -3,7 +3,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { createClient } from '@supabase/supabase-js';
-// ⭐️ IMPORTANTE: Certifique-se de importar Product e Category
+// ⭐️ Importa Product e Category (certifique-se de que Category está corretamente tipado com parent_id)
 import { Product, Category } from "@/types/product"; 
 
 export function cn(...inputs: ClassValue[]) {
@@ -38,6 +38,8 @@ export async function fetchCategories(): Promise<Category[]> {
         name: cat.nome,
         // ⭐️ NOVO: Garante que o ID do pai seja string ou null
         parent_id: cat.categoria_pai_id ? String(cat.categoria_pai_id) : null,
+        // Garante que o slug seja gerado ou use um campo existente se houver
+        slug: slugify(cat.nome)
     })); 
 }
 
