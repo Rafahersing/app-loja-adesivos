@@ -1,51 +1,103 @@
 // src/components/shop/CategoryFilter.tsx
 
-import { Button } from "@/components/ui/button";
-import { Category } from "@/types/product"; // Usamos a tipagem Category, que deve ter a propriedade 'name'
+// ⭐️ NOVO: Importamos os componentes Select/Dropdown do shadcn/ui
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Category } from "@/types/product"; 
+// Importamos Button, mas ele é usado apenas como um fallback simples
 
 interface CategoryFilterProps {
-  // Recebe a lista de categorias do Supabase. A propriedade de nome deve ser 'name'.
-  categories: Category[]; 
-  
-  // O selectedCategory é o ID da categoria (string) ou "all"
-  selectedCategory: string; 
-  
-  // O onCategoryChange recebe o ID da categoria (string) ou "all"
-  onCategoryChange: (category: string) => void;
+  // Recebe a lista completa (pais e filhos)
+  categories: Category[]; 
+  
+  // ID da Categoria Principal selecionada ("all" ou ID do Pai)
+  selectedCategory: string; 
+  
+  // ID da Subcategoria selecionada ("all" ou ID do Filho)
+  selectedSubcategory: string; 
+
+  // Handler para a Categoria Principal
+  onCategoryChange: (categoryId: string) => void;
+  
+  // Handler para a Subcategoria
+  onSubcategoryChange: (subcategoryId: string) => void;
 }
 
-export const CategoryFilter = ({ categories, selectedCategory, onCategoryChange }: CategoryFilterProps) => {
-  
-  // ⭐️ AJUSTE: Criamos a opção "Todas" usando 'name' para consistência.
-  const allCategory: Category = {
-    id: "all", // Usamos "all" para a URL e comparação
-    name: "Todos os Adesivos", // Usamos 'name' para exibição
-    // Assumimos que a interface Category tem slug, se não tiver, remova esta linha:
-    slug: 'all'
-  };
-  
-  // Concatena a opção "Todas" com as categorias reais DINÂMICAS do Supabase
-  const categoriesToDisplay = [allCategory, ...categories];
-  
-  return (
-    // 'flex-wrap' garante que as categorias quebrem a linha se houver muitas
-    <div className="flex flex-wrap gap-2">
-      {categoriesToDisplay.map((category) => (
-        <Button
-          // Usa category.id diretamente (string, seja UUID ou "all")
-          key={category.id} 
-          
-          // Compara selectedCategory (string) com category.id (string)
-          variant={selectedCategory === category.id ? "default" : "outline"} 
-          
-          // Passa category.id (string)
-          onClick={() => onCategoryChange(category.id)} 
-          className="transition-all whitespace-nowrap rounded-lg"
-        >
-          {/* Usa 'name' da categoria dinâmica */}
-          {category.name} 
-        </Button>
-      ))}
-    </div>
-  );
+export const CategoryFilter = ({ 
+    categories, 
+    selectedCategory, 
+    selectedSubcategory, 
+    onCategoryChange, 
+    onSubcategoryChange 
+}: CategoryFilterProps) => {
+
+    // 1. Filtrar APENAS Categorias Principais (onde parent_id é null)
+    const parentCategories = categories.filter(cat => cat.parent_id === null);
+
+    // 2. Filtrar Subcategorias para o Pai selecionado
+    // Verifica se selectedCategory é um ID válido (não "all")
+    const subcategories = categories.filter(cat => cat.parent_id === selectedCategory);
+
+    // Handler para redefinir a subcategoria ao mudar a categoria principal
+    const handleCategoryChange = (categoryId: string) => {
+        onCategoryChange(categoryId);
+        // Quando a categoria principal muda, resetamos a subcategoria para "all"
+        onSubcategoryChange("all");
+    };
+
+    return (
+        <div className="flex flex-col gap-4 mb-6 pt-2 md:flex-row md:gap-4 w-full items-start md:items-center">
+
+            {/* ---------------------------------------------------- */}
+            {/* 1. DROP-DOWN PARA CATEGORIA PRINCIPAL (PAIS) */}
+            {/* ---------------------------------------------------- */}
+            <Select 
+                value={selectedCategory} 
+                onValueChange={handleCategoryChange}
+            >
+                <SelectTrigger className="w-full md:w-[220px]">
+                    <SelectValue placeholder="Categoria Principal" />
+                </SelectTrigger>
+                <SelectContent>
+                    {/* Opção 'Todos os Adesivos' */}
+                    <SelectItem value="all">Todos os Adesivos</SelectItem> 
+
+                    {/* Mapeamento das Categorias Principais */}
+                    {parentCategories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            {/* ---------------------------------------------------- */}
+            {/* 2. DROP-DOWN PARA SUBCATEGORIA (FILHOS) */}
+            {/* ---------------------------------------------------- */}
+            {/* Exibe o segundo Select SOMENTE se:
+                1. Uma Categoria Principal VÁLIDA foi selecionada (selectedCategory !== "all")
+                2. E houver subcategorias para aquele Pai (subcategories.length > 0)
+            */}
+            {selectedCategory !== "all" && subcategories.length > 0 && (
+                <Select 
+                    value={selectedSubcategory} 
+                    onValueChange={onSubcategoryChange}
+                >
+                    <SelectTrigger className="w-full md:w-[220px]">
+                        {/* Se algo estiver selecionado, mostra o valor, senão mostra o placeholder */}
+                        <SelectValue placeholder="Selecione a Subcategoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {/* Opção para ver TODAS as subcategorias dentro do Pai selecionado */}
+                        <SelectItem value="all">Todas as Subcategorias</SelectItem> 
+
+                        {subcategories.map((sub) => (
+                            <SelectItem key={sub.id} value={sub.id}>
+                                {sub.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )}
+        </div>
+    );
 };
