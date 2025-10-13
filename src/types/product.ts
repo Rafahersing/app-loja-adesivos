@@ -5,7 +5,7 @@ export interface Product {
 	title: string;
 	description: string;
 	category: string;
-    category_id: string; // ⭐️ NOVO: Campo usado para o filtro de loja (UUID)
+    category_id: string; // Campo usado para o filtro de loja (UUID)
 	price: number;
 	// Campos de imagem que você já usa
 	imageUrl: string;
