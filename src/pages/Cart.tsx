@@ -112,10 +112,12 @@ const Cart = () => {
               </div>
             </div>
 
-            <Button variant="hero" size="lg" className="w-full mb-3">
-              Finalizar Compra
-              <ArrowRight className="h-5 w-5 ml-2" />
-            </Button>
+            <Button asChild variant="hero" size="lg" className="w-full mb-3">
+              <Link to="/checkout">
+                Finalizar Compra
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Link>
+            </Button>
 
             <Button variant="outline" size="lg" className="w-full" asChild>
               <Link to="/shop">Continuar Comprando</Link>
