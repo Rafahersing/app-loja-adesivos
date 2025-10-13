@@ -82,3 +82,53 @@ export const slugify = (text: string): string => {
         .replace(/[^\w\-]+/g, '')
         .replace(/\-\-+/g, '-');
 };
+
+// src/lib/utils.ts (Adicione esta função)
+
+import { Product } from "@/types/product"; // Importação garantida
+
+/**
+ * Busca um único produto pelo seu ID (UUID) no Supabase.
+ * @param id O UUID do produto.
+ * @returns O objeto Product ou null se não for encontrado.
+ */
+export async function fetchProductById(id: string): Promise<Product | null> {
+    const { data, error } = await supabase
+        .from('produtos')
+        .select(`
+            id, 
+            titulo, 
+            preco, 
+            url_imagem, 
+            descricao,
+            created_at,
+            produtos_categorias!inner(categoria_id) 
+        `) 
+        .eq('id', id) // ⭐️ Filtra pelo ID do produto
+        .single(); // Espera apenas um registro
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 é "não encontrado" (No rows found)
+        console.error("Erro ao buscar produto por ID:", error);
+        return null;
+    }
+
+    if (!data) {
+        return null; // Não encontrou o produto
+    }
+
+    // ⭐️ Mapeamento do DB para a interface Product (idêntico ao fetchProducts)
+    const product: any = data;
+    const rawPrice = product.preco ? String(product.preco) : '0';
+
+    return {
+        id: product.id,
+        title: product.titulo || 'Produto Sem Título',
+        description: product.descricao || '',
+        price: parseFloat(rawPrice) || 0, 
+        imageUrl: product.url_imagem || '', 
+        imageUrlHighRes: product.url_imagem || '',
+        createdAt: product.created_at,
+        category_id: product.produtos_categorias[0]?.categoria_id || null, 
+        category: '', 
+    } as Product;
+}
