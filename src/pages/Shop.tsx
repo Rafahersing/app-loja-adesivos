@@ -6,7 +6,7 @@ import { ProductCard } from "@/components/shop/ProductCard";
 import { CategoryFilter } from "@/components/shop/CategoryFilter";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
-import { fetchCategories, fetchProducts, slugify } from "@/lib/utils"; // Importa slugify
+import { fetchCategories, fetchProducts, slugify } from "@/lib/utils";
 import { Product, Category } from "@/types/product";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -39,7 +39,6 @@ const Shop = () => {
                 const mappedCategories: Category[] = (fetchedCategories as any[]).map(cat => ({
                     id: cat.id,
                     name: cat.nome,
-                    // Garante que o slug existe usando a função utilitária
                     slug: cat.slug || slugify(cat.nome), 
                 }));
 
@@ -49,14 +48,12 @@ const Shop = () => {
 
             } catch (err) {
                 console.error("Erro ao carregar dados da loja:", err);
-                // ⭐️ CAPTURA MELHORADA: Usa a mensagem do erro lançado
                 setError(
                     err instanceof Error 
                         ? err.message 
                         : 'Não foi possível carregar os produtos. Verifique RLS ou a query no Supabase.'
                 );
             } finally {
-                // ⭐️ GARANTIA: Define isLoading como false, independente do sucesso/erro
                 setIsLoading(false);
             }
         }
@@ -65,7 +62,7 @@ const Shop = () => {
     }, []);
     // --------------------------------------------------
 
-    // ... (handleCategoryChange, filteredProducts, handleAddToCart, handleToggleFavorite - Sem alterações)
+
     const handleCategoryChange = (category: string) => {
         const params = new URLSearchParams(searchParams);
         if (category === "all") {
@@ -120,14 +117,13 @@ const Shop = () => {
                     AÇÃO NECESSÁRIA: Verifique as **Policies de RLS** (Row Level Security) das tabelas `produtos` e `categorias` no Supabase para garantir que usuários anônimos (ou o perfil logado) possam ler os dados.
                 </p>
                 <p className="text-sm text-gray-500">
-                    O erro de `RLS` não é capturado automaticamente como erro de código, mas impede que os dados sejam retornados.
+                    Se o erro não for RLS, verifique os logs de rede para ver a resposta exata do Supabase.
                 </p>
             </div>
         );
     }
 
     if (isLoading) {
-        // ... (Seus Skeletons - Mantidos)
         return (
             <div className="container mx-auto px-4 py-8">
                 <h1 className="text-4xl font-bold mb-8">Explorar Imagens</h1>
@@ -188,7 +184,6 @@ const Shop = () => {
             ) : (
                 <div className="text-center py-20">
                     <p className="text-xl text-muted-foreground mb-4">
-                        {/* ⭐️ MENSAGEM CHAVE: Se não há erro e o array está vazio, significa que a busca retornou 0 produtos */}
                         Nenhum produto encontrado. Verifique se há produtos na tabela 'produtos' no Supabase.
                     </p>
                     <Link
