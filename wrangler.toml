@@ -1,0 +1,6 @@
+name = "app-loja-adesivos"
+compatibility_date = "2025-10-13"
+pages_build_output_dir = "dist"
+
+[build]
+command = "npm install && npm run build"
