@@ -28,7 +28,6 @@ export async function fetchCategories() {
         throw new Error(`Erro ao buscar categorias: ${error.message}`);
     }
     
-    // ✅ CORREÇÃO DE TIPAGEM: Garante que o ID da categoria seja STRING
     return data.map(cat => ({
         ...cat,
         id: String(cat.id), 
@@ -48,16 +47,17 @@ export async function fetchProducts() {
             url_imagem, 
             descricao,
             created_at,
-            // ⭐️ ATUALIZAÇÃO CRÍTICA: Faz JOIN para buscar o NOME da categoria ⭐️
             produtos_categorias!inner(
                 categoria_id,
                 categorias(nome) 
             ) 
-        `) 
+        `) // 🛑 Query SQL limpa - Removemos os comentários inline
         .order('titulo', { ascending: false });
 
     if (error) {
-        throw new Error(`Erro ao buscar produtos: ${error.message}`);
+        // O erro crítico na loja agora vai mostrar a mensagem correta.
+        console.error("Erro ao buscar produtos:", error);
+        throw new Error(`Erro Crítico ao carregar Dados: ${error.message}`);
     }
 
     // Mapeamento que ALINHA DB com Interface e CONVERTE IDS para STRING
@@ -67,10 +67,9 @@ export async function fetchProducts() {
         // Extrai dados da categoria
         const categoryData = product.produtos_categorias[0];
         const categoryId = categoryData?.categoria_id;
-        const categoryName = categoryData?.categorias?.nome || ''; // Retorna '' se não encontrar
+        const categoryName = categoryData?.categorias?.nome || ''; 
 
         return {
-            // ✅ CORREÇÃO DE TIPAGEM: ID do produto para STRING
             id: String(product.id), 
             title: product.titulo || 'Produto Sem Título',
             description: product.descricao || '',
@@ -79,10 +78,8 @@ export async function fetchProducts() {
             imageUrl: product.url_imagem || '', 
             imageUrlHighRes: product.url_imagem || '',
             createdAt: product.created_at,
-            // ✅ CORREÇÃO DE TIPAGEM: ID da categoria para STRING
             category_id: categoryId ? String(categoryId) : null, 
-            // ⭐️ NOVO: Usa o nome da categoria buscado no JOIN ⭐️
-            category: categoryName, 
+            category: categoryName, // Agora com o nome real
         };
     });
 
@@ -104,12 +101,9 @@ export const slugify = (text: string): string => {
 
 /**
  * Busca um único produto pelo seu ID (string) no Supabase.
- * @param id O ID do produto (deve ser a string do BIGINT).
- * @returns O objeto Product ou null se não for encontrado.
  */
 export async function fetchProductById(id: string): Promise<Product | null> {
     
-    // ✅ CORREÇÃO DE TIPAGEM: Converte para NUMBER para a QUERY no Supabase
     const dbProductId = Number(id);
 
     const { data, error } = await supabase
@@ -121,13 +115,12 @@ export async function fetchProductById(id: string): Promise<Product | null> {
             url_imagem, 
             descricao,
             created_at,
-            // ⭐️ ATUALIZAÇÃO: Inclui JOIN para categorias também aqui ⭐️
             produtos_categorias!inner(
                 categoria_id,
                 categorias(nome)
             ) 
-        `) 
-        .eq('id', dbProductId) // Usa o ID convertido (NUMBER)
+        `) // 🛑 Query SQL limpa - Removemos os comentários inline
+        .eq('id', dbProductId)
         .single(); 
 
     if (error && error.code !== 'PGRST116') {
@@ -149,7 +142,6 @@ export async function fetchProductById(id: string): Promise<Product | null> {
     const categoryName = categoryData?.categorias?.nome || '';
 
     return {
-        // ✅ CORREÇÃO DE TIPAGEM: Garante que o ID final seja STRING
         id: String(product.id),
         title: product.titulo || 'Produto Sem Título',
         description: product.descricao || '',
@@ -158,7 +150,6 @@ export async function fetchProductById(id: string): Promise<Product | null> {
         imageUrlHighRes: product.url_imagem || '',
         createdAt: product.created_at,
         category_id: categoryId ? String(categoryId) : null, 
-        // ⭐️ NOVO: Usa o nome da categoria buscado no JOIN ⭐️
         category: categoryName, 
     } as Product;
 }
