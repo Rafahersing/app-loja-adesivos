@@ -35,14 +35,13 @@ const Shop = () => {
                     fetchProducts()
                 ]);
 
-                // Mapeamento de categorias para garantir o campo 'slug'
+                // Mapeamento de categorias
                 const mappedCategories: Category[] = (fetchedCategories as any[]).map(cat => ({
                     id: cat.id,
-                    name: cat.nome, // ⭐️ GARANTIA: Mapeando 'nome' do banco para 'name' da interface
+                    name: cat.nome, // Mapeado do banco
                     slug: cat.slug || slugify(cat.nome), 
-                })); 
                 }));
-
+                // ⭐️ SINTAXE CORRIGIDA AQUI: Apenas um fechamento de parêntese ')}'
 
                 setCategories(mappedCategories);
                 setProducts(fetchedProducts as Product[]);
@@ -115,7 +114,7 @@ const Shop = () => {
                 <h2 className="text-xl font-bold text-red-700 mb-4">Erro Crítico ao Carregar Dados</h2>
                 <p className="text-red-600 mb-4">{error}</p>
                 <p className="mt-4 text-sm text-gray-700 font-semibold">
-                    AÇÃO NECESSÁRIA: Verifique as **Policies de RLS** (Row Level Security) das tabelas `produtos` e `categorias` no Supabase para garantir que usuários anônimos (ou o perfil logado) possam ler os dados.
+                    AÇÃO NECESSÁRIA: Verifique as **Policies de RLS** (Row Level Security) das tabelas `produtos` e `categorias` no Supabase.
                 </p>
                 <p className="text-sm text-gray-500">
                     Se o erro não for RLS, verifique os logs de rede para ver a resposta exata do Supabase.
@@ -185,7 +184,7 @@ const Shop = () => {
             ) : (
                 <div className="text-center py-20">
                     <p className="text-xl text-muted-foreground mb-4">
-                        Nenhum produto encontrado. Verifique se há produtos na tabela 'produtos' no Supabase.
+                        Nenhum produto encontrado.
                     </p>
                     <Link
                         to="/shop"
