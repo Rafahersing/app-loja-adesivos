@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient"; // se já existir; se não, criar cliente
+import { supabase } from "../lib/utils"; // Importa sua conexão Supabase
 
 export default function Checkout() {
   const { cart } = useStore();
