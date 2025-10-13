@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { fetchCategories, fetchProducts, slugify } from "@/lib/utils";
 import { Product, Category } from "@/types/product";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/lib/auth"; // ⭐️ IMPORTADO: Para verificar o usuário
+import { useAuth } from "@/lib/auth"; // Importado para verificar o usuário
 
 const Shop = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -21,7 +21,6 @@ const Shop = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // ⭐️ OBTENDO DADOS DO USUÁRIO ⭐️
     const { user } = useAuth();
     const { addToCart, toggleFavorite, isFavorite } = useStore();
 
@@ -38,10 +37,9 @@ const Shop = () => {
                     fetchProducts()
                 ]);
 
-                // Mapeamento de categorias
                 const mappedCategories: Category[] = (fetchedCategories as any[]).map(cat => ({
                     id: cat.id,
-                    name: cat.nome, // Mapeado do banco
+                    name: cat.nome,
                     slug: cat.slug || slugify(cat.nome), 
                 }));
                 
@@ -63,7 +61,6 @@ const Shop = () => {
         loadShopData();
     }, []);
     // --------------------------------------------------
-
 
     const handleCategoryChange = (category: string) => {
         const params = new URLSearchParams(searchParams);
@@ -97,25 +94,22 @@ const Shop = () => {
         toast.success(`${product.title} adicionado ao carrinho!`);
     };
 
-    // ⭐️ FUNÇÃO ATUALIZADA ⭐️
+    // ⭐️ FUNÇÃO ATUALIZADA (SEM TOAST DE SUCESSO AQUI) ⭐️
     const handleToggleFavorite = (productId: string) => {
         // 1. Verifica se o usuário está logado
         if (!user || !user.id) {
-            // ✅ Isto dispara o pop-up correto
             toast.error("Você precisa estar logado para favoritar.");
             return;
         }
 
-        // 2. Chama a função do store com o userId
-        // A lógica de toast.success ou toast.error AGORA DEVE ESTAR DENTRO DO useStore.ts
+        // 2. Chama a função do store com o userId.
+        // O toast de sucesso/erro AGORA está DENTRO do useStore.ts
         toggleFavorite(productId, user.id); 
-        
-        // ❌ REMOVIDO: O toast de sucesso/erro prematuro foi removido daqui
     };
 
 
     // --------------------------------------------------
-    // Condições de exibição
+    // Condições de exibição (mantidas)
     // --------------------------------------------------
     if (error) {
         return (
@@ -133,6 +127,7 @@ const Shop = () => {
     }
 
     if (isLoading) {
+        // ... Skeleton Loading ...
         return (
             <div className="container mx-auto px-4 py-8">
                 <h1 className="text-4xl font-bold mb-8">Explorar Imagens</h1>
