@@ -5,34 +5,69 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../lib/utils"; // Importa sua conexão Supabase
+import { supabase } from "../lib/utils"; // conexão com Supabase
 
 export default function Checkout() {
   const { cart } = useStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  const total = cart.reduce((s, i) => s + i.price, 0);
+  const total = cart.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
 
   async function handleCheckout() {
     setLoading(true);
+
     try {
-      // 1) criar pedido no backend - chamar função serverless
-      const resp = await fetch("/api/mercadopago/checkout", {
+      // Verifica se o usuário está logado
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        alert("Você precisa estar logado para finalizar a compra.");
+        navigate("/login");
+        return;
+      }
+
+      // Monta os itens no formato esperado pelo backend
+      const items = cart.map((item) => ({
+        id: item.id.toString(),
+        title: item.title,
+        quantity: item.quantity || 1,
+        unit_price: item.price,
+      }));
+
+      // Chama a função serverless hospedada no Cloudflare
+      const response = await fetch("/api/mercadopago/create-preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cart, total }),
+        body: JSON.stringify({
+          userId: user.id,
+          items,
+        }),
       });
-      const data = await resp.json();
-      if (data.init_point) {
-        // redirecionar pro checkout do Mercado Pago
-        window.location.href = data.init_point;
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Erro ao criar preferência:", data);
+        alert("Erro ao criar preferência de pagamento. Tente novamente.");
+        setLoading(false);
+        return;
+      }
+
+      if (data.initPoint) {
+        // Redireciona para o checkout do Mercado Pago
+        window.location.href = data.initPoint;
       } else {
-        console.error("Erro criando preferência", data);
+        console.error("Resposta inesperada:", data);
+        alert("Erro ao iniciar o pagamento. Tente novamente.");
         setLoading(false);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error("Erro no checkout:", error);
+      alert("Erro inesperado. Tente novamente.");
       setLoading(false);
     }
   }
@@ -40,7 +75,7 @@ export default function Checkout() {
   if (!cart.length) {
     return (
       <div className="container mx-auto p-8 text-center">
-        <h2>Carrinho vazio</h2>
+        <h2 className="text-xl font-semibold mb-4">Carrinho vazio</h2>
         <Link to="/shop">
           <Button variant="outline">Voltar à loja</Button>
         </Link>
@@ -51,32 +86,50 @@ export default function Checkout() {
   return (
     <div className="container mx-auto p-8">
       <h1 className="text-2xl font-bold mb-4">Checkout</h1>
+
       <div className="grid lg:grid-cols-3 gap-6">
+        {/* Resumo */}
         <div className="lg:col-span-2 space-y-4">
           <Card className="p-4">
             <h3 className="font-semibold mb-2">Resumo</h3>
-            {cart.map(item => (
-              <div key={item.id} className="flex justify-between">
-                <div>{item.title}</div>
-                <div>R$ {item.price.toFixed(2)}</div>
+
+            {cart.map((item) => (
+              <div key={item.id} className="flex justify-between py-1">
+                <div>
+                  {item.title} {item.quantity > 1 ? `x${item.quantity}` : ""}
+                </div>
+                <div>R$ {(item.price * (item.quantity || 1)).toFixed(2)}</div>
               </div>
             ))}
-            <Separator className="my-3"/>
+
+            <Separator className="my-3" />
+
             <div className="flex justify-between font-bold">
-              <div>Total</div>
-              <div>R$ {total.toFixed(2)}</div>
+              <span>Total</span>
+              <span>R$ {total.toFixed(2)}</span>
             </div>
           </Card>
         </div>
 
+        {/* Pagamento */}
         <div>
-          <Card className="p-4 sticky top-20">
-            <h3 className="font-semibold mb-2">Pagar</h3>
-            <Button variant="hero" size="lg" onClick={handleCheckout} disabled={loading}>
+          <Card className="p-4 sticky top-20 space-y-3">
+            <h3 className="font-semibold">Pagar</h3>
+
+            <Button
+              variant="hero"
+              size="lg"
+              onClick={handleCheckout}
+              disabled={loading}
+              className="w-full"
+            >
               {loading ? "Redirecionando..." : "Pagar com Mercado Pago"}
             </Button>
+
             <Link to="/cart">
-              <Button variant="outline" className="mt-3">Voltar ao carrinho</Button>
+              <Button variant="outline" className="w-full">
+                Voltar ao carrinho
+              </Button>
             </Link>
           </Card>
         </div>
