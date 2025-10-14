@@ -9,11 +9,12 @@ export const Footer = () => {
           {/* Logo e Descrição */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-primary">
-                <span className="text-xl font-bold text-primary-foreground">P</span>
-              </div>
-              <span className="text-xl font-bold">PixelStore</span>
-            </Link>
+  <img
+    src="https://pub-5c45cfd873454d96a8bc860a71c4c505.r2.dev/Logo%20dourado%20mais%20claro.png"
+    alt="Logo"
+    className="h-10 w-auto"
+  />
+</Link>
             <p className="text-sm text-muted-foreground">
               Imagens PNG de alta qualidade para seus projetos criativos.
             </p>
