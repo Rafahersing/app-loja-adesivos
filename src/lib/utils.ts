@@ -2,244 +2,56 @@
 
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { createClient } from '@supabase/supabase-js';
-// ⭐️ Importa Product e Category (certifique-se de que Category está corretamente tipado com parent_id)
-import { Product, Category } from "@/types/product"; 
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+// ----------------------------------------------------
+// VARIÁVEIS DO SUPABASE E INICIALIZAÇÃO SINGLETON
+// ----------------------------------------------------
+
+// Variável para armazenar a instância única do cliente Supabase
+let supabase: SupabaseClient | null = null;
+
+// Assumindo que você está usando VITE ou similar (baseado no import.meta.env dos seus anexos)
+// Certifique-se de que as variáveis de ambiente estão definidas
+const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY as string;
+
+// Implementação do Singleton: Cria a instância apenas se ela ainda não existir
+if (!supabase) {
+    if (!supabaseUrl || !supabaseAnonKey) {
+        // Lançamos um erro se as chaves de ambiente estiverem faltando
+        throw new Error("As variáveis de ambiente VITE_PUBLIC_SUPABASE_URL e VITE_PUBLIC_SUPABASE_ANON_KEY devem ser definidas.");
+    }
+    // Cria o cliente Supabase
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+}
+
+// Exporta a instância única do Supabase para uso em todo o projeto
+// Usamos o nome 'supabase' para compatibilidade com seus outros componentes
+export const supabaseClient = supabase as SupabaseClient;
+
+
+// ----------------------------------------------------
+// OUTRAS FUNÇÕES DE UTILIDADE
+// ----------------------------------------------------
+
+// Função cn (para utilitários de classe com clsx e twMerge)
 export function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
+  return twMerge(clsx(inputs));
 }
 
-// Supondo que as variáveis de ambiente estão definidas e acessíveis.
-const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY;
-
-export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as string);
-
-// ----------------------------------------------------------------------
-// Funções de Busca de Dados (Geral)
-// ----------------------------------------------------------------------
-
-// ⭐️ ATUALIZADO: Buscar a nova coluna 'categoria_pai_id'
-export async function fetchCategories(): Promise<Category[]> {
-    const { data, error } = await supabase
-        .from('categorias')
-        // ⭐️ Adicionamos a busca da nova coluna
-        .select('id, nome, categoria_pai_id') 
-        .order('nome', { ascending: true }); 
-
-    if (error) {
-        throw new Error(`Erro ao buscar categorias: ${error.message}`);
-    }
-    
-    // Mapeamento para o formato Category
-    return (data as any[]).map(cat => ({
-        id: String(cat.id),
-        name: cat.nome,
-        // ⭐️ NOVO: Garante que o ID do pai seja string ou null
-        parent_id: cat.categoria_pai_id ? String(cat.categoria_pai_id) : null,
-        // Garante que o slug seja gerado ou use um campo existente se houver
-        slug: slugify(cat.nome)
-    })); 
-}
-
-/**
- * Busca TODOS os produtos (Usada na página da loja).
- */
-export async function fetchProducts(): Promise<Product[]> {
-    const { data, error } = await supabase
-        .from('produtos')
-        .select(`
-            id, 
-            titulo, 
-            preco, 
-            url_imagem, 
-            descricao,
-            created_at,
-            produtos_categorias!inner(
-                categoria_id,
-                categorias(nome) 
-            ) 
-        `) 
-        .order('titulo', { ascending: false });
-
-    if (error) {
-        console.error("Erro ao buscar produtos:", error);
-        throw new Error(`Erro Crítico ao carregar Dados: ${error.message}`);
-    }
-
-    // Mapeamento do DB para a interface Product
-    const productsData = (data || []).map((product: any) => {
-        const rawPrice = product.preco ? String(product.preco) : '0';
-        
-        const categoryData = product.produtos_categorias[0];
-        const categoryId = categoryData?.categoria_id;
-        const categoryName = categoryData?.categorias?.nome || ''; 
-
-        return {
-            id: String(product.id), 
-            title: product.titulo || 'Produto Sem Título',
-            description: product.descricao || '',
-            price: parseFloat(rawPrice) || 0, 
-            
-            imageUrl: product.url_imagem || '', 
-            imageUrlHighRes: product.url_imagem || '',
-            createdAt: product.created_at,
-            category_id: categoryId ? String(categoryId) : null, 
-            category: categoryName, 
-        };
-    });
-    
-    // console.log("Produtos Mapeados (Verificar Categoria):", productsData);
-
-    return productsData as Product[];
-}
-
-/**
- * ⭐️ NOVA FUNÇÃO ⭐️
- * Busca APENAS os produtos favoritos do usuário logado (Usada na página de Favoritos).
- */
-export async function fetchFavoriteProducts(userId: string): Promise<Product[]> {
-    if (!userId) {
-        // Se não houver ID do usuário (não logado), retorna array vazio
-        return [];
-    }
-
-    // 1. Busca os IDs dos produtos favoritos do usuário logado
-    // A RLS para SELECT na 'favoritos' deve estar correta
-    const { data: favoriteData, error: favoriteError } = await supabase
-        .from('favoritos')
-        .select('produto_id')
-        .eq('usuario_id', userId);
-
-    if (favoriteError) {
-        console.error("Erro ao buscar IDs de favoritos:", favoriteError);
-        throw new Error(`Erro ao carregar favoritos: ${favoriteError.message}`);
-    }
-
-    // Se não houver favoritos, retorna array vazio
-    if (!favoriteData || favoriteData.length === 0) {
-        return [];
-    }
-
-    const productIds = favoriteData.map(f => f.produto_id);
-
-    // 2. Busca os detalhes completos dos produtos favoritos com INNER JOIN para a Categoria
-    // O INNER JOIN precisa de permissão de SELECT em 'produtos' e 'categorias'
-    const { data: productsData, error: productsError } = await supabase
-        .from('produtos')
-        .select(`
-            id, 
-            titulo, 
-            preco, 
-            url_imagem, 
-            descricao,
-            created_at,
-            produtos_categorias!inner(
-                categoria_id,
-                categorias(nome) 
-            )
-        `)
-        .in('id', productIds) // 🎯 Filtra APENAS pelos IDs favoritados (28, 29, 30)
-        .order('titulo', { ascending: false });
-
-    if (productsError) {
-        console.error("Erro ao buscar detalhes dos produtos favoritos:", productsError);
-        throw new Error(`Erro Crítico ao carregar Dados: ${productsError.message}`);
-    }
-
-    // 3. Mapeamento para o formato Product
-    const mappedProducts = (productsData || []).map((product: any) => {
-        const rawPrice = product.preco ? String(product.preco) : '0';
-        
-        const categoryData = product.produtos_categorias[0];
-        const categoryId = categoryData?.categoria_id;
-        // O nome da categoria 26 é 'Semana | Domingo'
-        const categoryName = categoryData?.categorias?.nome || ''; 
-
-        return {
-            id: String(product.id), 
-            title: product.titulo || 'Produto Sem Título',
-            description: product.descricao || '',
-            price: parseFloat(rawPrice) || 0, 
-            imageUrl: product.url_imagem || '', 
-            imageUrlHighRes: product.url_imagem || '',
-            createdAt: product.created_at,
-            category_id: categoryId ? String(categoryId) : null, 
-            category: categoryName, 
-        };
-    });
-    
-    // 🛑 LOG DE DIAGNÓSTICO: Este log deve mostrar o nome real da categoria
-    console.log("Produtos Favoritos Mapeados:", mappedProducts);
-
-    return mappedProducts as Product[];
-}
-
+// Função slugify (muito usada em seu ProductImportComponent)
 export const slugify = (text: string): string => {
-    // ... (função slugify sem alterações) ...
+    if (!text) return '';
     return text
-        .toString()
         .toLowerCase()
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
         .trim()
-        .replace(/\s+/g, '-')
-        .replace(/[^\w\-]+/g, '')
-        .replace(/\-\-+/g, '-');
+        .replace(/[^\w\s-]/g, '') // Remove caracteres não-palavra, espaço ou hífen
+        .replace(/[\s_-]+/g, '-') // Substitui espaços e múltiplos hífens por um único hífen
+        .replace(/^-+|-+$/g, ''); // Remove hífens do início ou fim
 };
 
-/**
- * Busca um único produto pelo seu ID (string) no Supabase.
- */
-export async function fetchProductById(id: string): Promise<Product | null> {
-    // ... (função fetchProductById sem alterações, mas com o código limpo) ...
-    
-    const dbProductId = Number(id);
-
-    const { data, error } = await supabase
-        .from('produtos')
-        .select(`
-            id, 
-            titulo, 
-            preco, 
-            url_imagem, 
-            descricao,
-            created_at,
-            produtos_categorias!inner(
-                categoria_id,
-                categorias(nome)
-            ) 
-        `)
-        .eq('id', dbProductId)
-        .single(); 
-
-    if (error && error.code !== 'PGRST116') {
-        console.error("Erro ao buscar produto por ID:", error);
-        return null;
-    }
-
-    if (!data) {
-        return null;
-    }
-
-    // Mapeamento do DB para a interface Product
-    const product: any = data;
-    const rawPrice = product.preco ? String(product.preco) : '0';
-    
-    const categoryData = product.produtos_categorias[0];
-    const categoryId = categoryData?.categoria_id;
-    const categoryName = categoryData?.categorias?.nome || '';
-
-    return {
-        id: String(product.id),
-        title: product.titulo || 'Produto Sem Título',
-        description: product.descricao || '',
-        price: parseFloat(rawPrice) || 0, 
-        imageUrl: product.url_imagem || '', 
-        imageUrlHighRes: product.url_imagem || '',
-        createdAt: product.created_at,
-        category_id: categoryId ? String(categoryId) : null, 
-        category: categoryName, 
-    } as Product;
-}
+// Se você já usava 'supabase' como export default/named, use este:
+// export const supabase = supabaseClient;
+// Para simplificar, assumimos que você ajustará suas importações para usar 'supabaseClient'
+export const supabase = supabaseClient;
