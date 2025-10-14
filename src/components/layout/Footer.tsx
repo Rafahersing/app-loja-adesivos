@@ -80,14 +80,14 @@ export const Footer = () => {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4" />
-                <a href="mailto:contato@pixelstore.com" className="hover:text-foreground transition-colors">
-                  contato@pixelstore.com
+                <a href="mailto:suportearquivocriativo@gmail.com" className="hover:text-foreground transition-colors">
+                  suportearquivocriativo@gmail.com
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <Instagram className="h-4 w-4" />
-                <a href="https://instagram.com/pixelstore" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
-                  @pixelstore
+                <a href="https://www.instagram.com/rafahersing" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                  @rafahersing
                 </a>
               </li>
             </ul>
@@ -95,7 +95,7 @@ export const Footer = () => {
         </div>
 
         <div className="mt-12 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} PixelStore. Todos os direitos reservados.</p>
+          <p>&copy; {new Date().getFullYear()} Rafaela Hersing. Todos os direitos reservados.</p>
         </div>
       </div>
     </footer>
