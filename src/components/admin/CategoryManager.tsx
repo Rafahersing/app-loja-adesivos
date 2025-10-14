@@ -5,11 +5,12 @@ import { supabase } from '@/lib/utils'; // Use seu caminho real de importação
 // NOVOS IMPORTS
 import { Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+// Importamos o Select do shadcn/ui
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // Importamos a tipagem correta, onde id e categoria_pai_id são 'number'
-import { Category } from '@/types/product'; 
+import { Category as CategoryType } from '@/types/product'; 
 
-// Ajustamos o tipo Category local para usar 'number' e 'categoria_pai_id'
+// Definimos a interface local (ajustada para a busca do banco de dados)
 interface Category {
   id: number; // AJUSTADO: Se o Supabase usa INT8, o ID é number
   name: string;
@@ -20,12 +21,12 @@ interface Category {
 const CategoryManager: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
-  // NOVO ESTADO: Para a seleção da Categoria Pai no formulário de adição
+  // NOVO ESTADO: Para a seleção da Categoria Pai no formulário de adição (usamos string para o Select)
   const [selectedParentId, setSelectedParentId] = useState<string>("null"); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [editingId, setEditingId] = useState<number | null>(null); // AJUSTADO: ID de edição é number
+  const [editingId, setEditingId] = useState<number | null>(null); // ID de edição é number
   const [editingName, setEditingName] = useState('');
 
   // -----------------------------------------------------------
@@ -37,11 +38,11 @@ const CategoryManager: React.FC = () => {
     setLoading(true);
     setError(null);
     
-    // CORREÇÃO: Selecionamos o novo campo 'categoria_pai_id'
+    // CORREÇÃO: Selecionamos o novo campo 'categoria_pai_id' e o campo 'nome'
     const { data, error } = await supabase
       .from('categorias')
-      .select('id, nome, slug, categoria_pai_id') // nome no DB é 'nome'
-      .order('nome', { ascending: true }); // ordenamos por 'nome'
+      .select('id, nome, slug, categoria_pai_id') 
+      .order('nome', { ascending: true });
 
     if (error) {
       setError('Erro ao carregar categorias: ' + error.message);
@@ -71,7 +72,8 @@ const CategoryManager: React.FC = () => {
     // Lógica para determinar o ID do Pai
     let parentIdValue: number | null = null;
     if (selectedParentId !== "null") {
-        parentIdValue = parseInt(selectedParentId, 10);
+        // Converte a string do Select para número (INT8)
+        parentIdValue = parseInt(selectedParentId, 10); 
     }
 
     const { error: insertError } = await supabase
@@ -97,7 +99,7 @@ const CategoryManager: React.FC = () => {
   };
   
   // Função UPDATE (Atualização)
-  const saveEdit = async (id: number) => { // AJUSTADO: id é number
+  const saveEdit = async (id: number) => { // id é number
     if (!editingName.trim()) return;
 
     setLoading(true);
@@ -123,9 +125,8 @@ const CategoryManager: React.FC = () => {
   };
 
   // Função DELETE (Exclusão)
-  const handleDelete = async (id: number, name: string) => { // AJUSTADO: id é number
-    // Aviso de que excluir um Pai pode afetar os Filhos (devido ao ON DELETE SET NULL)
-    if (!window.confirm(`Tem certeza que deseja excluir a categoria: ${name}? Se esta for uma categoria principal, as subcategorias se tornarão categorias principais sem pai.`)) {
+  const handleDelete = async (id: number, name: string) => { // id é number
+    if (!window.confirm(`Tem certeza que deseja excluir a categoria: ${name}? Se esta for uma categoria principal, as subcategorias se tornarão categorias principais sem pai (devido ao ON DELETE SET NULL).`)) {
         return;
     }
 
@@ -173,53 +174,58 @@ const CategoryManager: React.FC = () => {
       <h2 className="text-2xl font-bold mb-6">Gerenciar Categorias</h2>
       
       {/* Formulário de Adição (AGORA COM SELEÇÃO DE PAI) */}
-      <form onSubmit={addCategory} className="mb-8 flex flex-col md:flex-row gap-3">
-        <div className="flex-grow flex flex-col md:flex-row gap-3">
-            <input
-              type="text"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="Nome da Nova Categoria"
-              disabled={loading}
-              className="p-3 border border-gray-300 rounded-lg flex-grow focus:ring-green-500 focus:border-green-500"
-            />
-            {/* ⭐️ NOVO: SELECT DE CATEGORIA PAI ⭐️ */}
-            <Select
-                value={selectedParentId}
-                onValueChange={setSelectedParentId}
-                disabled={loading}
-            >
-                <SelectTrigger className="w-full md:w-[250px] p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-                    <SelectValue placeholder="Categoria Pai (Opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="null">
-                        (Categoria Principal)
-                    </SelectItem>
-                    {parentCategories.map((category) => (
-                        // Converte ID (number) para string para o SelectItem
-                        <SelectItem key={category.id} value={category.id.toString()}> 
-                            {category.name}
+      <div className="mb-8 p-4 border rounded-lg bg-gray-50">
+        <h3 className="text-lg font-semibold mb-3">Adicionar Nova Categoria</h3>
+        <form onSubmit={addCategory} className="flex flex-col md:flex-row gap-3">
+            <div className="flex-grow flex flex-col md:flex-row gap-3">
+                <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Nome da Nova Categoria"
+                    disabled={loading}
+                    className="p-3 border border-gray-300 rounded-lg flex-grow focus:ring-green-500 focus:border-green-500"
+                    required
+                />
+                {/* ⭐️ NOVO: SELECT DE CATEGORIA PAI ⭐️ */}
+                <Select
+                    value={selectedParentId}
+                    onValueChange={setSelectedParentId}
+                    disabled={loading}
+                >
+                    <SelectTrigger className="w-full md:w-[250px] p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                        <SelectValue placeholder="Categoria Pai (Opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="null">
+                            (Categoria Principal)
                         </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-        </div>
-        
-        <button 
-          type="submit" 
-          disabled={loading || !newCategoryName.trim()}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 min-w-[100px]"
-        >
-          Adicionar
-        </button>
-      </form>
+                        {parentCategories.map((category) => (
+                            // Converte ID (number) para string para o SelectItem
+                            <SelectItem key={category.id} value={category.id.toString()}> 
+                                {category.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            
+            <button 
+                type="submit" 
+                disabled={loading || !newCategoryName.trim()}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 min-w-[100px]"
+            >
+                Adicionar
+            </button>
+        </form>
+      </div>
       
       {/* Lista de Categorias */}
+      <h3 className="text-xl font-semibold mb-3 mt-8">Lista de Categorias</h3>
       <div className="bg-white shadow-lg rounded-lg border border-gray-200">
         <ul className="divide-y divide-gray-100">
           {categories.map((category) => (
-            // Adicionamos classes para diferenciar subcategorias (opcional, para visualização)
+            // Classe para subcategorias para melhorar a visualização hierárquica
             <li key={category.id} className={`p-4 flex justify-between items-center transition-colors hover:bg-gray-50 ${category.categoria_pai_id !== null ? 'pl-8 bg-gray-50' : ''}`}>
               
               {editingId === category.id ? (
@@ -263,7 +269,7 @@ const CategoryManager: React.FC = () => {
                 <div className="space-x-2">
                     {/* Botão de Editar */}
                     <button 
-                        onClick={() => setEditingId(category.id)} // Passamos o ID (number)
+                        onClick={() => setEditingId(category.id)} 
                         disabled={loading}
                         className="p-2 text-blue-500 hover:text-blue-700 transition-colors disabled:opacity-50"
                         title="Editar"
@@ -272,7 +278,7 @@ const CategoryManager: React.FC = () => {
                     </button>
                     {/* Botão de Excluir */}
                     <button 
-                        onClick={() => handleDelete(category.id, category.name)} // Passamos o ID (number)
+                        onClick={() => handleDelete(category.id, category.name)} 
                         disabled={loading}
                         className="p-2 text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
                         title="Excluir"
