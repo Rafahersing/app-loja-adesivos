@@ -1,137 +1,62 @@
-import { createClient } from '@supabase/supabase-js';
+import { v4 as uuidv4 } from "uuid";
 
-interface Env {
-  MERCADOPAGO_ACCESS_TOKEN: string;
-  SUPABASE_SERVICE_ROLE_KEY: string;
-  SITE_URL: string;
-  VITE_PUBLIC_SUPABASE_URL: string;
-}
-
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export async function onRequestPost(context) {
   try {
     const { request, env } = context;
+    const body = await request.json();
 
-    // 🔹 Log das variáveis principais (sem mostrar chaves sensíveis)
-    console.log("🔹 Iniciando create-preference");
-    console.log("SITE_URL:", env.SITE_URL);
-    console.log("SUPABASE URL:", env.VITE_PUBLIC_SUPABASE_URL);
-    console.log("🔑 MERCADOPAGO_ACCESS_TOKEN no ambiente:", !!process.env.MERCADOPAGO_ACCESS_TOKEN);
+    console.log("🧾 Requisição recebida em create-preference:", body);
 
+    const orderId = uuidv4();
 
-    const body = await request.json() as {
-      userId?: string;
-      items?: Array<{
-        id: string;
-        title: string;
-        quantity: number;
-        unit_price: number;
-      }>;
-    };
+    console.log("✅ Pedido criado:", orderId);
 
-    if (!body.items || body.items.length === 0) {
-      console.error("❌ Nenhum item recebido no body:", body);
-      return new Response(JSON.stringify({ error: "Nenhum item no pedido." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    // Criar cliente Supabase
-    const supabase = createClient(env.VITE_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-
-    const total = body.items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
-
-    console.log("🧾 Total calculado:", total);
-
-    // Criar pedido
-    const { data: pedido, error: pedidoError } = await supabase
-      .from('pedidos')
-      .insert({
-        user_id: body.userId ?? null,
-        total_amount: total,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (pedidoError || !pedido) {
-      console.error("❌ Erro ao criar pedido no Supabase:", pedidoError);
-      return new Response(JSON.stringify({ error: "Erro ao criar pedido no banco." }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    console.log("✅ Pedido criado:", pedido.id);
-
-    // Criar estrutura de preferência
-    const preference = {
-      items: body.items.map(item => ({
-        id: item.id,
+    const preferenceBody = {
+      items: body.cart.map(item => ({
+        id: item.id.toString(),
         title: item.title,
-        quantity: Number(item.quantity),
-        unit_price: Number(item.unit_price),
+        quantity: 1,
+        unit_price: item.price,
         currency_id: "BRL",
       })),
       back_urls: {
-        success: `${env.SITE_URL}/checkout/success?order_id=${pedido.id}`,
+        success: `${env.SITE_URL}/checkout/success?order_id=${orderId}`,
         failure: `${env.SITE_URL}/checkout/failure`,
         pending: `${env.SITE_URL}/checkout/pending`,
       },
       auto_return: "approved",
-      external_reference: pedido.id,
+      external_reference: orderId,
       notification_url: `${env.SITE_URL}/api/mercadopago/webhook`,
     };
 
-    console.log("📦 Preference body enviada ao Mercado Pago:", JSON.stringify(preference, null, 2));
+    console.log("📦 Preference body enviada ao Mercado Pago:", JSON.stringify(preferenceBody, null, 2));
 
-    // Criar preferência no Mercado Pago
-    const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
+    const mpUrl = "https://api.sandbox.mercadopago.com/checkout/preferences"; // 👈 sandbox endpoint
+
+    const mpResp = await fetch(mpUrl, {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,
         "Content-Type": "application/json",
-        Authorization: `Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,
       },
-      body: JSON.stringify(preference),
+      body: JSON.stringify(preferenceBody),
     });
 
-    const text = await mpResponse.text();
+    const data = await mpResp.json();
 
-    if (!mpResponse.ok) {
-      console.error("❌ Erro do Mercado Pago:", text);
-      return new Response(JSON.stringify({ error: "Erro ao criar preferência de pagamento", details: text }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+    if (!mpResp.ok) {
+      console.error("❌ Erro do Mercado Pago:", data);
+      return new Response(JSON.stringify({ error: data }), { status: 400 });
     }
 
-    const mpData = JSON.parse(text) as { init_point: string; id: string };
-    console.log("✅ Preferência criada com sucesso:", mpData.id);
+    console.log("✅ Preferência criada com sucesso:", data.init_point);
 
-    // Atualizar pedido com ID de pagamento
-    const { error: updateError } = await supabase
-      .from("pedidos")
-      .update({ payment_id: mpData.id })
-      .eq("id", pedido.id);
-
-    if (updateError) {
-      console.error("⚠️ Erro ao atualizar pedido com payment_id:", updateError);
-    }
-
-    return new Response(JSON.stringify({
-      orderId: pedido.id,
-      init_point: mpData.init_point,
-    }), {
-      status: 200,
+    return new Response(JSON.stringify({ init_point: data.init_point }), {
       headers: { "Content-Type": "application/json" },
     });
 
-  } catch (error) {
-    console.error("💥 Erro inesperado em create-preference:", error);
-    return new Response(JSON.stringify({ error: "Erro interno no servidor" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+  } catch (err) {
+    console.error("❌ Erro geral no create-preference:", err);
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
-};
+}
