@@ -1,44 +1,36 @@
 // src/components/admin/CategoryManager.tsx
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/utils'; // Use seu caminho real de importação
-// NOVOS IMPORTS
+import { supabase } from '@/lib/utils';
 import { Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-// Importamos o Select do shadcn/ui
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-// Importamos a tipagem correta, onde id e categoria_pai_id são 'number'
+// Importamos a tipagem correta
 import { Category as CategoryType } from '@/types/product'; 
 
-// Definimos a interface local (ajustada para a busca do banco de dados)
 interface Category {
-  id: number; // AJUSTADO: Se o Supabase usa INT8, o ID é number
-  name: string;
+  id: number; 
+  name: string; // O nome que o React espera
   slug: string;
-  categoria_pai_id: number | null; // NOVO CAMPO: Para exibir a hierarquia
+  categoria_pai_id: number | null; 
 }
 
 const CategoryManager: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
-  // NOVO ESTADO: Para a seleção da Categoria Pai no formulário de adição (usamos string para o Select)
   const [selectedParentId, setSelectedParentId] = useState<string>("null"); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [editingId, setEditingId] = useState<number | null>(null); // ID de edição é number
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
-
-  // -----------------------------------------------------------
-  // LÓGICA DE DADOS
-  // -----------------------------------------------------------
 
   // Função READ (Leitura)
   const fetchCategories = async () => {
     setLoading(true);
     setError(null);
     
-    // CORREÇÃO: Selecionamos o novo campo 'categoria_pai_id' e o campo 'nome'
+    // CRÍTICO: Buscamos o nome da coluna REAL do DB ('nome')
     const { data, error } = await supabase
       .from('categorias')
       .select('id, nome, slug, categoria_pai_id') 
@@ -47,10 +39,10 @@ const CategoryManager: React.FC = () => {
     if (error) {
       setError('Erro ao carregar categorias: ' + error.message);
     } else if (data) {
-        // Mapeamos os dados do banco (nome, id, slug) para o formato 'Category'
+        // CORREÇÃO: Mapeamos o nome REAL do DB ('nome') para a propriedade do React ('name')
         const formattedData = data.map(item => ({
             id: item.id,
-            name: item.nome, // Mapeia 'nome' do DB para 'name' no TS
+            name: item.nome, // <--- O Mapeamento Acontece Aqui!
             slug: item.slug,
             categoria_pai_id: item.categoria_pai_id,
         }));
@@ -69,37 +61,36 @@ const CategoryManager: React.FC = () => {
 
     const newSlug = newCategoryName.trim().toLowerCase().replace(/\s+/g, '-');
     
-    // Lógica para determinar o ID do Pai
     let parentIdValue: number | null = null;
     if (selectedParentId !== "null") {
-        // Converte a string do Select para número (INT8)
         parentIdValue = parseInt(selectedParentId, 10); 
     }
 
+    // CRÍTICO: Inserimos o nome na coluna REAL do DB ('nome')
     const { error: insertError } = await supabase
       .from('categorias')
       .insert([
         {  
-          nome: newCategoryName.trim(), // Nome da coluna no DB é 'nome'
+          nome: newCategoryName.trim(), 
           slug: newSlug,  
-          categoria_pai_id: parentIdValue // NOVO CAMPO INSERIDO
+          categoria_pai_id: parentIdValue
         }
       ]);
-
+    // [Restante da lógica de sucesso/erro da função addCategory...]
     if (insertError) {
-      setError('Erro ao adicionar categoria: ' + insertError.message);
-      toast.error('Falha ao adicionar categoria.');
+        setError('Erro ao adicionar categoria: ' + insertError.message);
+        toast.error('Falha ao adicionar categoria.');
     } else {
-      setNewCategoryName('');
-      setSelectedParentId("null"); // Reseta a seleção
-      toast.success(`Categoria '${newCategoryName.trim()}' adicionada!`);
-      await fetchCategories();
+        setNewCategoryName('');
+        setSelectedParentId("null"); 
+        toast.success(`Categoria '${newCategoryName.trim()}' adicionada!`);
+        await fetchCategories();
     }
     setLoading(false);
   };
   
-  // Função UPDATE (Atualização)
-  const saveEdit = async (id: number) => { // id é number
+  // [Restante das funções saveEdit e handleDelete...]
+  const saveEdit = async (id: number) => { 
     if (!editingName.trim()) return;
 
     setLoading(true);
@@ -107,9 +98,10 @@ const CategoryManager: React.FC = () => {
     
     const newSlug = editingName.trim().toLowerCase().replace(/\s+/g, '-');
 
+    // CRÍTICO: Atualizamos a coluna REAL do DB ('nome')
     const { error: updateError } = await supabase
       .from('categorias')
-      .update({ nome: editingName.trim(), slug: newSlug }) // Nome da coluna no DB é 'nome'
+      .update({ nome: editingName.trim(), slug: newSlug }) 
       .eq('id', id);
 
     if (updateError) {
@@ -124,20 +116,16 @@ const CategoryManager: React.FC = () => {
     setLoading(false);
   };
 
-  // Função DELETE (Exclusão)
-  const handleDelete = async (id: number, name: string) => { // id é number
-    if (!window.confirm(`Tem certeza que deseja excluir a categoria: ${name}? Se esta for uma categoria principal, as subcategorias se tornarão categorias principais sem pai (devido ao ON DELETE SET NULL).`)) {
+  const handleDelete = async (id: number, name: string) => { 
+    if (!window.confirm(`Tem certeza que deseja excluir a categoria: ${name}?`)) {
         return;
     }
-
     setLoading(true);
     setError(null);
-
     const { error: deleteError } = await supabase
       .from('categorias')
       .delete()
       .eq('id', id);
-
     if (deleteError) {
       setError('Erro ao excluir categoria: ' + deleteError.message);
       toast.error('Falha ao excluir categoria.');
@@ -147,19 +135,15 @@ const CategoryManager: React.FC = () => {
     }
     setLoading(false);
   };
-
-  // -----------------------------------------------------------
-  // Ciclo de Vida e Renderização
-  // -----------------------------------------------------------
+  
+  // [Restante do código de renderização, que já tem o Select de Categoria Pai e a lógica de exibição...]
   
   useEffect(() => {
     fetchCategories();
   }, []);
 
-  // Filtra apenas categorias principais para o dropdown de seleção do Pai
   const parentCategories = categories.filter(cat => cat.categoria_pai_id === null);
 
-  // Função auxiliar para exibir o nome do Pai
   const getParentName = (parentId: number | null): string => {
     if (parentId === null) return "Principal";
     const parent = categories.find(cat => cat.id === parentId);
@@ -173,7 +157,7 @@ const CategoryManager: React.FC = () => {
     <div className="p-4 max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold mb-6">Gerenciar Categorias</h2>
       
-      {/* Formulário de Adição (AGORA COM SELEÇÃO DE PAI) */}
+      {/* Formulário de Adição (COM SELECT DE PAI) */}
       <div className="mb-8 p-4 border rounded-lg bg-gray-50">
         <h3 className="text-lg font-semibold mb-3">Adicionar Nova Categoria</h3>
         <form onSubmit={addCategory} className="flex flex-col md:flex-row gap-3">
@@ -187,7 +171,6 @@ const CategoryManager: React.FC = () => {
                     className="p-3 border border-gray-300 rounded-lg flex-grow focus:ring-green-500 focus:border-green-500"
                     required
                 />
-                {/* ⭐️ NOVO: SELECT DE CATEGORIA PAI ⭐️ */}
                 <Select
                     value={selectedParentId}
                     onValueChange={setSelectedParentId}
@@ -201,7 +184,6 @@ const CategoryManager: React.FC = () => {
                             (Categoria Principal)
                         </SelectItem>
                         {parentCategories.map((category) => (
-                            // Converte ID (number) para string para o SelectItem
                             <SelectItem key={category.id} value={category.id.toString()}> 
                                 {category.name}
                             </SelectItem>
@@ -225,11 +207,10 @@ const CategoryManager: React.FC = () => {
       <div className="bg-white shadow-lg rounded-lg border border-gray-200">
         <ul className="divide-y divide-gray-100">
           {categories.map((category) => (
-            // Classe para subcategorias para melhorar a visualização hierárquica
             <li key={category.id} className={`p-4 flex justify-between items-center transition-colors hover:bg-gray-50 ${category.categoria_pai_id !== null ? 'pl-8 bg-gray-50' : ''}`}>
               
               {editingId === category.id ? (
-                // ⭐️ MODO EDIÇÃO ⭐️
+                // MODO EDIÇÃO
                 <div className='flex-grow flex gap-2 items-center'>
                     <input
                         type="text"
@@ -237,28 +218,15 @@ const CategoryManager: React.FC = () => {
                         onChange={(e) => setEditingName(e.target.value)}
                         className="p-1 border border-blue-400 rounded flex-grow"
                     />
-                    <button 
-                        onClick={() => saveEdit(category.id)} 
-                        disabled={loading}
-                        className="bg-blue-500 text-white text-sm px-3 py-1 rounded hover:bg-blue-600 disabled:opacity-50"
-                    >
-                        Salvar
-                    </button>
-                    <button 
-                        onClick={() => setEditingId(null)}
-                        disabled={loading}
-                        className="bg-gray-400 text-white text-sm px-3 py-1 rounded hover:bg-gray-500 disabled:opacity-50"
-                    >
-                        Cancelar
-                    </button>
+                    <button onClick={() => saveEdit(category.id)} disabled={loading} className="bg-blue-500 text-white text-sm px-3 py-1 rounded hover:bg-blue-600 disabled:opacity-50">Salvar</button>
+                    <button onClick={() => setEditingId(null)} disabled={loading} className="bg-gray-400 text-white text-sm px-3 py-1 rounded hover:bg-gray-500 disabled:opacity-50">Cancelar</button>
                 </div>
               ) : (
-                // ⭐️ MODO VISUALIZAÇÃO ⭐️
+                // MODO VISUALIZAÇÃO
                 <div className='flex-grow'>
                     <span className={`font-medium ${category.categoria_pai_id !== null ? 'text-gray-700' : 'text-gray-800'}`}>
                         {category.name}
                     </span>
-                    {/* Exibe o status do Pai */}
                     <span className="text-sm text-gray-500 ml-3">
                         ({category.slug} - {getParentName(category.categoria_pai_id)})
                     </span>
@@ -267,24 +235,8 @@ const CategoryManager: React.FC = () => {
 
               {editingId !== category.id && (
                 <div className="space-x-2">
-                    {/* Botão de Editar */}
-                    <button 
-                        onClick={() => setEditingId(category.id)} 
-                        disabled={loading}
-                        className="p-2 text-blue-500 hover:text-blue-700 transition-colors disabled:opacity-50"
-                        title="Editar"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </button>
-                    {/* Botão de Excluir */}
-                    <button 
-                        onClick={() => handleDelete(category.id, category.name)} 
-                        disabled={loading}
-                        className="p-2 text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
-                        title="Excluir"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </button>
+                    <button onClick={() => setEditingId(category.id)} disabled={loading} className="p-2 text-blue-500 hover:text-blue-700 transition-colors disabled:opacity-50" title="Editar"><Edit className="h-4 w-4" /></button>
+                    <button onClick={() => handleDelete(category.id, category.name)} disabled={loading} className="p-2 text-red-500 hover:text-red-700 transition-colors disabled:opacity-50" title="Excluir"><Trash2 className="h-4 w-4" /></button>
                 </div>
               )}
             </li>
