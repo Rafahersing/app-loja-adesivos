@@ -1,12 +1,13 @@
 // src/components/admin/AddProductForm.tsx 
+// ESTA VERSÃO CONTÉM UM BLOCO DE TESTE DE CONEXÃO NO LUGAR DA RENDERIZAÇÃO NORMAL DE CHECKBOXES.
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/utils'; // Caminho para sua instância Supabase
+import { supabase } from '@/lib/utils'; // Use seu caminho de importação real
 import { toast } from 'sonner';
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Category as CategoryType } from '@/types/product'; 
+import { Category as CategoryType } from '@/types/product'; // Certifique-se que o ID aqui é STRING
 import { Loader2 } from 'lucide-react';
 
 interface AddProductFormProps {
@@ -22,7 +23,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
     const [imageUrl, setImageUrl] = useState('');
     const [description, setDescription] = useState('');
     
-    // CRÍTICO: IDs de Categoria tratados como STRING para int8
+    // IDs de Categoria tratados como STRING (para int8)
     const [categories, setCategories] = useState<CategoryType[]>([]);
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]); 
     
@@ -31,28 +32,31 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
 
 
     // -----------------------------------------------------------
-    // BUSCA E MAPEAMENTO DE CATEGORIAS (Corrigido para INT8/STRING)
+    // BUSCA E MAPEAMENTO DE CATEGORIAS (COM LOGS DE DEBUG)
     // -----------------------------------------------------------
     const fetchCategories = async () => {
         setLoadingCategories(true);
         
         const { data, error } = await supabase
             .from('categorias')
-            // Seleciona apenas as colunas existentes
+            // Busca apenas colunas existentes e necessárias
             .select('id, nome, categoria_pai_id') 
             .order('nome', { ascending: true });
 
         if (error) {
-            console.error('Erro ao carregar categorias:', error);
-            // Se houver erro, a mensagem de toast irá aparecer
+            console.error('ERRO SUPABASE - BUSCA DE CATEGORIAS:', error); // <-- LOG CRÍTICO
             toast.error('Não foi possível carregar as categorias. Verifique o RLS ou conexão.');
         } else if (data) {
+            console.log('DADOS BRUTOS SUPABASE (Categorias):', data); // <-- LOG CRÍTICO
+            
             const formattedCategories: CategoryType[] = data.map(item => ({
                 // CRÍTICO: CONVERTE IDs INT8 para STRING
                 id: String(item.id), 
-                name: item.nome, // Mapeia 'nome' do DB para 'name' do frontend
+                name: item.nome, 
                 categoria_pai_id: item.categoria_pai_id ? String(item.categoria_pai_id) : null,
             } as CategoryType));
+
+            console.log('DADOS FORMATADOS (Categorias):', formattedCategories); // <-- LOG CRÍTICO
 
             setCategories(formattedCategories);
         }
@@ -61,29 +65,10 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
 
     useEffect(() => {
         fetchCategories();
-        // O array de dependências vazio garante que a busca só ocorra uma vez na montagem
     }, []);
 
-    const handleCategoryChange = (categoryId: string) => { 
-        setSelectedCategoryIds(prev => 
-            prev.includes(categoryId)
-                ? prev.filter(id => id !== categoryId)
-                : [...prev, categoryId]
-        );
-    };
-    
-    // Função auxiliar para aninhar categorias
-    const getNestedCategories = (cats: CategoryType[], parentId: string | null = null) => {
-        return cats
-            .filter(cat => cat.categoria_pai_id === parentId)
-            .map(parentCat => ({
-                ...parentCat,
-                children: getNestedCategories(cats, parentCat.id)
-            }));
-    };
+    // NOTE: Funções de categoria e salvamento foram mantidas, mas o foco é o bloco de teste na renderização.
 
-    const nestedCategories = getNestedCategories(categories);
-    
     // -----------------------------------------------------------
     // LÓGICA DE SALVAMENTO DE PRODUTO
     // -----------------------------------------------------------
@@ -105,7 +90,6 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
                 price, 
                 image_url: imageUrl, 
                 description
-                // Nota: O Supabase deve gerar o UUID do produto automaticamente
             })
             .select('id')
             .single();
@@ -121,7 +105,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
         // 2. Inserir Relações Produto-Categoria
         const relations = selectedCategoryIds.map(catId => ({
             product_id: newProductId,
-            category_id: catId, // catId é STRING, vindo do ID da categoria INT8
+            category_id: catId, 
         }));
 
         const { error: categoryError } = await supabase
@@ -134,7 +118,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
             toast.success(`Produto '${title}' adicionado com sucesso!`);
         }
         
-        onProductAdded(); // Notifica a página para recarregar a lista
+        onProductAdded(); 
 
         // Limpa o formulário
         setTitle('');
@@ -177,42 +161,28 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
                 className="bg-gray-800 text-white border-gray-700 placeholder-gray-500"
             />
 
-            {/* ⭐️ SELEÇÃO DE CATEGORIAS (Usa nestedCategories) ⭐️ */}
+            {/* ⭐️ TRECHO DE RENDERIZAÇÃO DE TESTE CRÍTICO ⭐️ */}
             <div className="space-y-2">
-                <label className="block text-sm font-medium">Categorias* (selecione uma ou mais)</label>
+                <label className="block text-sm font-medium">Categorias* (TESTE DE CONEXÃO)</label>
                 <div className="border border-gray-700 p-3 h-48 overflow-y-auto rounded-md bg-gray-900">
                     {loadingCategories ? (
-                        <p className='text-gray-500 flex items-center'><Loader2 className='h-4 w-4 mr-2 animate-spin'/> Carregando categorias...</p>
-                    ) : nestedCategories.length === 0 ? (
-                        // AQUI deve mostrar 'Nenhuma categoria encontrada' se o array de categorias estiver vazio
-                        <p className='text-gray-500'>Nenhuma categoria encontrada. Cadastre em "Categorias".</p>
+                        <p className='text-yellow-500 flex items-center'><Loader2 className='h-4 w-4 mr-2 animate-spin'/> Carregando...</p>
                     ) : (
-                        // Renderização das Categorias
-                        nestedCategories.map((category) => (
-                            <div key={category.id} className="mb-1">
-                                <label className="flex items-center text-white">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedCategoryIds.includes(category.id)}
-                                        onChange={() => handleCategoryChange(category.id)}
-                                        className="mr-2 h-4 w-4 bg-gray-800 border-gray-600 text-green-500 focus:ring-green-500"
-                                    />
-                                    {category.name}
-                                </label>
-                                {/* Renderiza Subcategorias Aninhadas */}
-                                {category.children && category.children.map((subCat) => (
-                                    <label key={subCat.id} className="flex items-center text-gray-400 ml-5">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedCategoryIds.includes(subCat.id)}
-                                            onChange={() => handleCategoryChange(subCat.id)}
-                                            className="mr-2 h-4 w-4 bg-gray-800 border-gray-600 text-green-500 focus:ring-green-500"
-                                        />
-                                        {subCat.name} (Sub)
-                                    </label>
-                                ))}
-                            </div>
-                        ))
+                        <div>
+                            {/* RESULTADO DO TESTE DE DADOS */}
+                            <p className='text-white font-bold'>Total de Categorias Encontradas: {categories.length}</p>
+                            
+                            {/* Exibe o nome e ID de cada categoria para confirmar que os dados chegaram */}
+                            {categories.map((cat, index) => (
+                                <p key={cat.id} className='text-green-400 text-sm'>
+                                    {index + 1}. {cat.name} (ID: {cat.id})
+                                </p>
+                            ))}
+                            
+                            {categories.length === 0 && (
+                                <p className='text-red-500'>FALHA: Array Vazio. Verifique o console para "ERRO SUPABASE".</p>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
@@ -227,7 +197,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
             
             <Button 
                 type="submit" 
-                disabled={saving || loadingCategories || !title || price <= 0 || selectedCategoryIds.length === 0}
+                disabled={saving || loadingCategories || !title || price <= 0}
                 className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
             >
                 {saving ? <Loader2 className='h-4 w-4 mr-2 animate-spin'/> : 'Adicionar Produto'}
