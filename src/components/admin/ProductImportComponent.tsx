@@ -1,9 +1,9 @@
 // src/components/admin/ProductImportComponent.tsx
-// (Ou o arquivo onde a sua UI de upload está)
+// (Componente de Importação em Massa)
 
 import React, { useState } from 'react';
-import * as XLSX from 'xlsx'; // Importamos a biblioteca que adicionamos
-import { supabase, slugify } from '@/lib/utils';
+import * as XLSX from 'xlsx'; 
+import { supabase, slugify } from '@/lib/utils'; // Assumimos que 'slugify' está em utils
 import { toast } from 'sonner';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,16 +20,20 @@ const ProductImportComponent: React.FC<ProductImportComponentProps> = ({ onImpor
 
     // ⭐️ Lógica Central de Processamento e Inserção ⭐️
     const processAndPrepareProducts = async (rows: string[][], headers: string[]) => {
-        // 1. Buscar todas as categorias existentes (slug e id)
+        // 1. Buscar todas as categorias existentes (id e nome)
         const { data: categoryData, error: catError } = await supabase
             .from('categorias')
-            .select('id, slug');
+            // 🟢 CORREÇÃO CRÍTICA: Usamos 'nome' em vez de 'slug'
+            .select('id, nome'); 
 
         if (catError) throw new Error(`Falha ao buscar categorias: ${catError.message}`);
 
-        // Mapeamento de Slug para ID para inserção rápida
+        // Mapeamento de Slug (gerado a partir do nome do DB) para ID
         const categoryMap: { [key: string]: string } = categoryData.reduce((map, cat) => {
-            map[cat.slug] = cat.id;
+            // Aplicamos o slugify no nome do DB para criar a chave de mapeamento
+            const slugFromNome = slugify(cat.nome); 
+            // O ID é int8, mas é tratado como string/number pelo JS
+            map[slugFromNome] = cat.id; 
             return map;
         }, {});
         
@@ -39,7 +43,7 @@ const ProductImportComponent: React.FC<ProductImportComponentProps> = ({ onImpor
         // Mapeia o índice da coluna do cabeçalho
         const headerMap: { [key: string]: number } = {};
         headers.forEach((h, i) => {
-            // Normaliza o nome da coluna para evitar erros de case/espaço
+            // Normaliza o nome da coluna
             const normalizedHeader = h.toLowerCase().trim().replace(/ da imagem| de arquivo| preço|url/g, '').replace(/título/g, 'title');
             headerMap[normalizedHeader] = i;
         });
@@ -66,6 +70,7 @@ const ProductImportComponent: React.FC<ProductImportComponentProps> = ({ onImpor
             }
 
             // Gera um UUID temporário (ou use o 'id' se sua planilha tiver um)
+            // Usamos crypto.randomUUID() para garantir que temos um ID de produto único
             const tempProductId = crypto.randomUUID(); 
 
             // 1. Preparar o Produto
@@ -85,7 +90,8 @@ const ProductImportComponent: React.FC<ProductImportComponentProps> = ({ onImpor
 
             // 2. Preparar a Relação Categoria
             const categoryName = row[categoryIndex]?.trim();
-            const categorySlug = slugify(categoryName);
+            // Aplicamos slugify no nome da CATEGORIA da planilha para buscar no mapa
+            const categorySlug = slugify(categoryName); 
             const categoryId = categoryMap[categorySlug];
             
             if (categoryId) {
@@ -154,7 +160,9 @@ const ProductImportComponent: React.FC<ProductImportComponentProps> = ({ onImpor
             
         } catch (error) {
             console.error('Erro na importação:', error);
-            toast.error(`Falha na importação: ${error.message}`);
+            // Verifica se o erro é um objeto antes de tentar acessar .message
+            const errorMessage = (error as Error).message || "Erro desconhecido durante a importação.";
+            toast.error(`Falha na importação: ${errorMessage}`);
         } finally {
             setUploading(false);
             setFileName("Nenhum arquivo escolhido");
@@ -169,8 +177,8 @@ const ProductImportComponent: React.FC<ProductImportComponentProps> = ({ onImpor
         <Card className="p-6 space-y-4 border-2 border-dashed border-gray-300 bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
             <div className="text-center space-y-2">
                 <UploadCloud className="h-10 w-10 text-gray-500 mx-auto" />
-                <h3 className="text-lg font-semibold">Faça upload de arquivo CSV ou Excel</h3>
-                <p className="text-sm text-muted-foreground">O arquivo deve conter: URL da imagem, Categoria, Título, Descrição, Preço.</p>
+                <h3 className="text-lg font-semibold text-white">Faça upload de arquivo CSV ou Excel</h3>
+                <p className="text-sm text-gray-400">O arquivo deve conter: URL da imagem, Categoria, Título, Descrição, Preço.</p>
             </div>
             
             <div className="flex items-center justify-center gap-4">
@@ -187,13 +195,13 @@ const ProductImportComponent: React.FC<ProductImportComponentProps> = ({ onImpor
                     <Button 
                         asChild
                         disabled={uploading}
-                        className="cursor-pointer"
+                        className="cursor-pointer bg-green-600 hover:bg-green-700 text-white"
                     >
                         <span>Escolher arquivo</span>
                     </Button>
                 </label>
                 
-                <span className={`text-sm ${uploading ? 'text-blue-500' : 'text-muted-foreground'}`}>
+                <span className={`text-sm ${uploading ? 'text-blue-400' : 'text-gray-400'}`}>
                     {uploading ? (
                         <span className="flex items-center">
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
