@@ -9,26 +9,24 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // ----------------------------------------------------
 
 // Variável para armazenar a instância única do cliente Supabase
-let supabase: SupabaseClient | null = null;
+let supabaseInstance: SupabaseClient | null = null;
 
-// Assumindo que você está usando VITE ou similar (baseado no import.meta.env dos seus anexos)
-// Certifique-se de que as variáveis de ambiente estão definidas
+// Variáveis de ambiente (usando VITE_PUBLIC_... como nos seus anexos)
 const supabaseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY as string;
 
 // Implementação do Singleton: Cria a instância apenas se ela ainda não existir
-if (!supabase) {
+if (!supabaseInstance) {
     if (!supabaseUrl || !supabaseAnonKey) {
         // Lançamos um erro se as chaves de ambiente estiverem faltando
-        throw new Error("As variáveis de ambiente VITE_PUBLIC_SUPABASE_URL e VITE_PUBLIC_SUPABASE_ANON_KEY devem ser definidas.");
+        throw new Error("As variáveis de ambiente SUPABASE_URL e SUPABASE_ANON_KEY devem ser definidas.");
     }
     // Cria o cliente Supabase
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
 }
 
-// Exporta a instância única do Supabase para uso em todo o projeto
-// Usamos o nome 'supabase' para compatibilidade com seus outros componentes
-export const supabaseClient = supabase as SupabaseClient;
+// ⭐️ EXPORTAÇÃO ÚNICA: Este é o único ponto de exportação do cliente Supabase.
+export const supabase = supabaseInstance as SupabaseClient;
 
 
 // ----------------------------------------------------
@@ -46,12 +44,7 @@ export const slugify = (text: string): string => {
     return text
         .toLowerCase()
         .trim()
-        .replace(/[^\w\s-]/g, '') // Remove caracteres não-palavra, espaço ou hífen
-        .replace(/[\s_-]+/g, '-') // Substitui espaços e múltiplos hífens por um único hífen
-        .replace(/^-+|-+$/g, ''); // Remove hífens do início ou fim
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
 };
-
-// Se você já usava 'supabase' como export default/named, use este:
-// export const supabase = supabaseClient;
-// Para simplificar, assumimos que você ajustará suas importações para usar 'supabaseClient'
-export const supabase = supabaseClient;
