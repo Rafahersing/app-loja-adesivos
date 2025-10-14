@@ -15,6 +15,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     console.log("🔹 Iniciando create-preference");
     console.log("SITE_URL:", env.SITE_URL);
     console.log("SUPABASE URL:", env.VITE_PUBLIC_SUPABASE_URL);
+    console.log("🔑 MERCADOPAGO_ACCESS_TOKEN no ambiente:", !!process.env.MERCADOPAGO_ACCESS_TOKEN);
+
 
     const body = await request.json() as {
       userId?: string;
