@@ -1,11 +1,13 @@
 // src/types/product.ts
 
 export interface Product {
-	id: string; 
+	id: string; // O ID do produto é um UUID/string
 	title: string;
 	description: string;
 	category: string;
-    // CORREÇÃO: category_id deve ser string (UUID) se a tabela de produtos usa string.
+    // CRÍTICO: Mantemos 'string' aqui. Se a coluna category_id na tabela de produtos
+    // usa UUIDs ou IDs formatados como string (diferente de INT8), usar 'number'
+    // faz com que o front-end perca a referência.
 	category_id: string; 
 	price: number;
 	// Campos de imagem
@@ -15,12 +17,15 @@ export interface Product {
 }
 
 export type Category = {
-    // MANTIDO: number, pois a tabela 'categorias' usa INT8 (conforme a imagem que você enviou).
+    // AJUSTE: MANTIDO 'number', pois a coluna 'id' na tabela 'categorias' é INT8.
 	id: number; 
+	// Mapeado de 'nome' do banco (usado para exibição do filtro)
 	name: string; 
-	// MANTIDO: número/null para o relacionamento.
+    
+    // AJUSTE: MANTIDO 'number | null', pois a coluna 'categoria_pai_id' é INT8.
 	categoria_pai_id: number | null; 
-	slug: string; 
+    
+	slug: string; // Usado para URL ou rotas, se necessário
 };
 
 // ⭐️ Lista CATEGORIES removida:
