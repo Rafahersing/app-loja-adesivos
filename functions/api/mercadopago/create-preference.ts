@@ -29,7 +29,8 @@ export async function onRequestPost(context) {
       notification_url: `${env.SITE_URL}/api/mercadopago/webhook`,
     };
 
-    console.log("📦 Preference body enviada ao Mercado Pago:", JSON.stringify(preferenceBody, null, 2));
+   console.log("📦 Preference body enviada ao Mercado Pago:", JSON.stringify(preferenceBody, null, 2));
+console.log("🔑 Token lido pelo Cloudflare:", env.MERCADOPAGO_ACCESS_TOKEN ? env.MERCADOPAGO_ACCESS_TOKEN.substring(0, 20) + "..." : "⚠️ undefined");
 
     const mpUrl = "https://api.sandbox.mercadopago.com/checkout/preferences"; // 👈 sandbox endpoint
 
