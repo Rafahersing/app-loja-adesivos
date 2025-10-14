@@ -12,7 +12,7 @@ export const Footer = () => {
   <img
     src="https://pub-5c45cfd873454d96a8bc860a71c4c505.r2.dev/Logo%20dourado%20mais%20claro.png"
     alt="Logo"
-    className="h-10 w-auto"
+    className="h-12 md:h-20 w-auto"
   />
 </Link>
             <p className="text-sm text-muted-foreground">
