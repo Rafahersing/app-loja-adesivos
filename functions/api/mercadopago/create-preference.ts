@@ -4,6 +4,7 @@ export async function onRequestPost(context) {
 
     // Lê o corpo da requisição (JSON)
     const body = await request.json();
+    console.log("🌍 Variáveis de ambiente (parcial):", { SITE_URL: env.SITE_URL, MERCADOPAGO_ACCESS_TOKEN_LENGTH: env.MERCADOPAGO_ACCESS_TOKEN ? env.MERCADOPAGO_ACCESS_TOKEN.length : 'undefined' });
     console.log("📥 Body recebido:", body);
 
     // Validação básica
@@ -32,9 +33,10 @@ export async function onRequestPost(context) {
         notification_url: `${env.SITE_URL}/api/mercadopago/webhook`,
     };
 
-    console.log("📦 Enviando preferenceBody:", preferenceBody);
+    console.log("📦 Enviando preferenceBody:", JSON.stringify(preferenceBody, null, 2));
 
     // Faz o POST para o Mercado Pago
+    console.log("🚀 Fazendo requisição para o Mercado Pago em:", mpUrl);
     const response = await fetch(mpUrl, {
       method: "POST",
       headers: {
