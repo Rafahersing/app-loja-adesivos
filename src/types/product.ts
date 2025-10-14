@@ -5,17 +5,19 @@ export interface Product {
 	title: string;
 	description: string;
 	category: string;
-    // CRÍTICO: MANTIDO COMO STRING. Isto é vital se o ID do PRODUTO é UUID e a tabela de produto-categoria
-    // usa esse ID como string, ou se o mapeamento final dos produtos espera uma string.
+    // O ID da categoria no produto (se for a FK) é geralmente string
 	category_id: string; 
 	price: number;
-	// ...
+	imageUrl: string;
+	imageUrlHighRes: string;
+	createdAt: string;
 }
 
 export type Category = {
-    // CRÍTICO: MANTIDO COMO NUMBER. O ID da tabela 'categorias' no Supabase é INT8.
-	id: number; 
+    // CRÍTICO: ID é STRING para lidar com INT8 sem perda de precisão.
+	id: string; 
 	name: string; // Mapeado de 'nome'
 	descricao?: string; 
-	categoria_pai_id: number | null; 
+    // CRÍTICO: ID Pai é STRING ou NULL.
+	categoria_pai_id: string | null; 
 };
