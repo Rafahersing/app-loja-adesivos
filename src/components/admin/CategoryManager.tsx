@@ -1,35 +1,30 @@
-// src/components/admin/CategoryManager.tsx
+// src/components/admin/CategoryManager.tsx (CORREÇÃO DE SLUG)
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/utils'; // Use seu caminho real de importação
-// NOVOS IMPORTS
 import { Edit, Trash2, Search } from 'lucide-react';
 import { toast } from 'sonner';
-// Importamos o Select do shadcn/ui
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-// Importamos a tipagem correta
-import { Category as CategoryType } from '@/types/product'; 
 import { Input } from "@/components/ui/input";
 
-// Definimos a interface local (ajustada para a busca do banco de dados)
+// Interface alinhada ao DB (sem slug, com descricao)
 interface Category {
-  id: number; // ID é number
-  name: string;
-  slug: string;
-  categoria_pai_id: number | null; // Novo campo
+  id: number;
+  name: string; // Mapeado de 'nome' do DB
+  descricao?: string; // Coluna opcional
+  categoria_pai_id: number | null;
 }
 
 const CategoryManager: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
-  // ESTADO DO DROPDOWN: 'null' para categoria principal
   const [selectedParentId, setSelectedParentId] = useState<string>("null"); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [searchTerm, setSearchTerm] = useState(''); // Estado para o campo de busca
+  const [searchTerm, setSearchTerm] = useState('');
 
   // -----------------------------------------------------------
   // LÓGICA DE DADOS
@@ -40,20 +35,21 @@ const CategoryManager: React.FC = () => {
     setLoading(true);
     setError(null);
     
-    // CRÍTICO: Selecionamos o nome REAL do DB ('nome')
+    // CRÍTICO: Removido 'slug'. Buscamos o nome REAL das colunas: id, nome, descricao, categoria_pai_id.
     const { data, error } = await supabase
       .from('categorias')
-      .select('id, nome, slug, categoria_pai_id') 
+      .select('id, nome, descricao, categoria_pai_id') 
       .order('nome', { ascending: true });
 
     if (error) {
+      // Exibe o erro se a coluna realmente não existir
       setError('Erro ao carregar categorias: ' + error.message);
     } else if (data) {
-        // Mapeamos os dados do banco (nome) para o formato 'Category' (name)
+        // Mapeamos 'nome' do DB para 'name' do React
         const formattedData = data.map(item => ({
             id: item.id,
-            name: item.nome, // <--- Mapeamento CRÍTICO
-            slug: item.slug,
+            name: item.nome, 
+            descricao: item.descricao,
             categoria_pai_id: item.categoria_pai_id,
         }));
       setCategories(formattedData as Category[]);
@@ -68,13 +64,9 @@ const CategoryManager: React.FC = () => {
 
     setLoading(true);
     setError(null);
-
-    const newSlug = newCategoryName.trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
     
-    // Lógica para determinar o ID do Pai
     let parentIdValue: number | null = null;
     if (selectedParentId !== "null") {
-        // Converte a string do Select para número (INT8)
         parentIdValue = parseInt(selectedParentId, 10); 
     }
 
@@ -82,9 +74,9 @@ const CategoryManager: React.FC = () => {
       .from('categorias')
       .insert([
         {  
-          nome: newCategoryName.trim(), // Nome da coluna no DB é 'nome'
-          slug: newSlug,  
-          categoria_pai_id: parentIdValue // NOVO CAMPO INSERIDO
+          nome: newCategoryName.trim(), 
+          // REMOVIDO: Não tentamos mais inserir 'slug'
+          categoria_pai_id: parentIdValue
         }
       ]);
 
@@ -93,7 +85,7 @@ const CategoryManager: React.FC = () => {
       toast.error('Falha ao adicionar categoria.');
     } else {
       setNewCategoryName('');
-      setSelectedParentId("null"); // Reseta a seleção
+      setSelectedParentId("null"); 
       toast.success(`Categoria '${newCategoryName.trim()}' adicionada!`);
       await fetchCategories();
     }
@@ -107,11 +99,10 @@ const CategoryManager: React.FC = () => {
     setLoading(true);
     setError(null);
     
-    const newSlug = editingName.trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
-
     const { error: updateError } = await supabase
       .from('categorias')
-      .update({ nome: editingName.trim(), slug: newSlug }) // Nome da coluna no DB é 'nome'
+      // Atualizamos apenas o 'nome'
+      .update({ nome: editingName.trim() }) 
       .eq('id', id);
 
     if (updateError) {
@@ -126,7 +117,6 @@ const CategoryManager: React.FC = () => {
     setLoading(false);
   };
 
-  // Função DELETE (Exclusão)
   const handleDelete = async (id: number, name: string) => { 
     if (!window.confirm(`Tem certeza que deseja excluir a categoria: ${name}?`)) {
         return;
@@ -149,29 +139,24 @@ const CategoryManager: React.FC = () => {
     }
     setLoading(false);
   };
-
-  // -----------------------------------------------------------
-  // Ciclo de Vida e Renderização
-  // -----------------------------------------------------------
+  
+  // [Restante do código de renderização, que já tem o Select de Categoria Pai e a lógica de exibição...]
   
   useEffect(() => {
     fetchCategories();
   }, []);
 
-  // Categorias que são pais (usadas no dropdown)
   const parentCategories = categories.filter(cat => cat.categoria_pai_id === null);
 
-  // Função auxiliar para exibir o nome do Pai
   const getParentName = (parentId: number | null): string => {
     if (parentId === null) return "Principal";
     const parent = categories.find(cat => cat.id === parentId);
     return parent ? `Subcategoria de: ${parent.name}` : "Principal (Pai não encontrado)";
   };
 
-  // Lógica de filtro para a lista
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    category.slug.toLowerCase().includes(searchTerm.toLowerCase())
+    (category.descricao && category.descricao.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (loading && categories.length === 0) return <div className="p-4 text-gray-500">Carregando categorias...</div>;
@@ -195,7 +180,7 @@ const CategoryManager: React.FC = () => {
                     className="p-3 border border-gray-300 rounded-lg flex-grow focus:ring-green-500 focus:border-green-500"
                     required
                 />
-                {/* ⭐️ NOVO: SELECT DE CATEGORIA PAI ⭐️ */}
+                {/* ⭐️ SELECT DE CATEGORIA PAI ⭐️ */}
                 <Select
                     value={selectedParentId}
                     onValueChange={setSelectedParentId}
@@ -209,7 +194,6 @@ const CategoryManager: React.FC = () => {
                             (Categoria Principal)
                         </SelectItem>
                         {parentCategories.map((category) => (
-                            // Converte ID (number) para string para o SelectItem
                             <SelectItem key={category.id} value={category.id.toString()}> 
                                 {category.name}
                             </SelectItem>
@@ -233,7 +217,7 @@ const CategoryManager: React.FC = () => {
       <div className="mb-4 relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
         <Input
-            placeholder="Buscar por nome ou slug..."
+            placeholder="Buscar por nome ou descrição..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -266,7 +250,7 @@ const CategoryManager: React.FC = () => {
                         {category.name}
                     </span>
                     <span className="text-sm text-gray-500 ml-3">
-                        ({category.slug} - {getParentName(category.categoria_pai_id)})
+                        ({category.descricao || 'Sem descrição'} - {getParentName(category.categoria_pai_id)})
                     </span>
                 </div>
               )}
