@@ -1,13 +1,12 @@
 // src/types/product.ts
 
 export interface Product {
-	id: string; // O ID do produto é um UUID/string
+	id: string; 
 	title: string;
 	description: string;
 	category: string;
-    // CRÍTICO: Mantemos 'string' aqui. Se a coluna category_id na tabela de produtos
-    // usa UUIDs ou IDs formatados como string (diferente de INT8), usar 'number'
-    // faz com que o front-end perca a referência.
+    // CRÍTICO: DEVE SER STRING. Isso corrige o problema de "Categoria Desconhecida" 
+    // na área admin, pois a tabela de produtos armazena o ID como string/UUID.
 	category_id: string; 
 	price: number;
 	// Campos de imagem
@@ -17,16 +16,13 @@ export interface Product {
 }
 
 export type Category = {
-    // AJUSTE: MANTIDO 'number', pois a coluna 'id' na tabela 'categorias' é INT8.
+    // MANTIDO: NUMBER. ID da tabela 'categorias' é INT8.
 	id: number; 
-	// Mapeado de 'nome' do banco (usado para exibição do filtro)
 	name: string; 
-    
-    // AJUSTE: MANTIDO 'number | null', pois a coluna 'categoria_pai_id' é INT8.
+    // MANTIDO: NUMBER | NULL. Coluna 'categoria_pai_id' é INT8.
 	categoria_pai_id: number | null; 
-    
-	slug: string; // Usado para URL ou rotas, se necessário
+	slug: string; 
 };
 
 // ⭐️ Lista CATEGORIES removida:
-// As categorias agora são carregadas dinamicamente do Supabase pelo fetchCategories.
+// As categorias agora são carregadas dinamicamente do Supabase.
