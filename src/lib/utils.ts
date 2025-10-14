@@ -60,7 +60,7 @@ import { Product, Category } from "@/types/product";
 export async function fetchCategories(): Promise<Category[]> {
     const { data, error } = await supabase
         .from("categorias")
-        .select("id, name, parent_id");
+        .select("id, nome, parent_id");
 
     if (error) {
         console.error("Erro ao buscar categorias:", error);
@@ -70,7 +70,7 @@ export async function fetchCategories(): Promise<Category[]> {
     // Mapeia os dados para o formato Category, garantindo parent_id como string ou null
     return data.map(cat => ({
         id: cat.id,
-        name: cat.name,
+        name: cat.nome,
         parent_id: cat.parent_id || null, // Garante que parent_id seja null se não existir
     }));
 }
@@ -137,4 +137,3 @@ export async function fetchFavoriteProducts(userId: string): Promise<Product[]> 
 
     return products as Product[];
 }
-
