@@ -5,23 +5,21 @@ export interface Product {
 	title: string;
 	description: string;
 	category: string;
-    // CRÍTICO: DEVE SER STRING para corresponder à tabela de produtos (UUID/string).
+    // CRÍTICO: DEVE SER STRING (UUID)
 	category_id: string; 
 	price: number;
-	// Campos de imagem
+	// ... outros campos
 	imageUrl: string;
 	imageUrlHighRes: string;
 	createdAt: string;
 }
 
 export type Category = {
-    // MANTIDO: NUMBER. ID da tabela 'categorias' é INT8.
+    // MANTIDO: NUMBER (INT8)
 	id: number; 
 	name: string; 
-    // REMOVEMOS O SLUG DA TIPAGEM (já que o DB não o tem)
-    
-    // MANTIDO: NUMBER | NULL. Coluna 'categoria_pai_id' é INT8.
+    // MANTIDO: NUMBER | NULL (INT8)
 	categoria_pai_id: number | null; 
-    // AJUSTE: Adicionamos descricao, pois ela existe no DB.
+    // Novo campo na tipagem, alinhado ao seu DB
     descricao?: string; 
 };
