@@ -1,11 +1,13 @@
-// src/types/product.ts
+// src/types/product.ts (CONTEÚDO COMPLETO E ATUALIZADO)
 
 export interface Product {
-	id: string;
+	id: string; // O ID do produto pode ser um UUID/string
 	title: string;
 	description: string;
 	category: string;
-    category_id: string; // Campo usado para o filtro de loja (UUID da categoria)
+    // AJUSTE: Mudar para 'number', pois a tabela usa INT8 para IDs de categoria.
+    // O nome da coluna no produto deve ser o ID da categoria final (pai ou filho).
+	category_id: number; 
 	price: number;
 	// Campos de imagem
 	imageUrl: string;
@@ -14,10 +16,14 @@ export interface Product {
 }
 
 export type Category = {
-	id: string; // UUID da categoria
+    // AJUSTE: Mudar para 'number', pois a tabela usa INT8.
+	id: number; 
 	name: string; // Mapeado de 'nome' do banco (usado para exibição do filtro)
-    // ⭐️ NOVO: Campo para identificar o pai (null para categorias principais)
-    parent_id: string | null; 
+    
+    // AJUSTE: O nome da propriedade deve refletir a coluna do DB ('categoria_pai_id')
+    // e o tipo deve ser 'number | null'.
+	categoria_pai_id: number | null; 
+    
 	slug: string; // Usado para URL ou rotas, se necessário
 };
 
