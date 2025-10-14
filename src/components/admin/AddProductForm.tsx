@@ -1,7 +1,7 @@
-// src/components/admin/AddProductForm.tsx (Conteúdo Completo e Corrigido)
+// src/components/admin/AddProductForm.tsx 
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/utils'; // Use seu caminho de importação real
+import { supabase } from '@/lib/utils'; // Caminho para sua instância Supabase
 import { toast } from 'sonner';
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,39 +15,42 @@ interface AddProductFormProps {
 
 const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
     // -----------------------------------------------------------
-    // ESTADOS DO PRODUTO
+    // ESTADOS DO PRODUTO E CATEGORIAS
     // -----------------------------------------------------------
     const [title, setTitle] = useState('');
     const [price, setPrice] = useState<number>(0);
     const [imageUrl, setImageUrl] = useState('');
     const [description, setDescription] = useState('');
     
-    // -----------------------------------------------------------
-    // ESTADOS DA CATEGORIA (CRÍTICO: USANDO STRING)
-    // -----------------------------------------------------------
+    // CRÍTICO: IDs de Categoria tratados como STRING para int8
     const [categories, setCategories] = useState<CategoryType[]>([]);
-    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]); // MUDANÇA: string[]
+    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]); 
+    
     const [loadingCategories, setLoadingCategories] = useState(false);
     const [saving, setSaving] = useState(false);
 
 
-    // CRÍTICO: FUNÇÃO DE BUSCA CORRIGIDA COM CONVERSÃO DE TIPAGEM
+    // -----------------------------------------------------------
+    // BUSCA E MAPEAMENTO DE CATEGORIAS (Corrigido para INT8/STRING)
+    // -----------------------------------------------------------
     const fetchCategories = async () => {
         setLoadingCategories(true);
         
         const { data, error } = await supabase
             .from('categorias')
+            // Seleciona apenas as colunas existentes
             .select('id, nome, categoria_pai_id') 
             .order('nome', { ascending: true });
 
         if (error) {
-            console.error('Erro ao carregar categorias para o produto:', error);
-            toast.error('Não foi possível carregar as categorias.');
+            console.error('Erro ao carregar categorias:', error);
+            // Se houver erro, a mensagem de toast irá aparecer
+            toast.error('Não foi possível carregar as categorias. Verifique o RLS ou conexão.');
         } else if (data) {
             const formattedCategories: CategoryType[] = data.map(item => ({
                 // CRÍTICO: CONVERTE IDs INT8 para STRING
                 id: String(item.id), 
-                name: item.nome, 
+                name: item.nome, // Mapeia 'nome' do DB para 'name' do frontend
                 categoria_pai_id: item.categoria_pai_id ? String(item.categoria_pai_id) : null,
             } as CategoryType));
 
@@ -58,9 +61,10 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
 
     useEffect(() => {
         fetchCategories();
+        // O array de dependências vazio garante que a busca só ocorra uma vez na montagem
     }, []);
 
-    const handleCategoryChange = (categoryId: string) => { // MUDANÇA: categoryId é string
+    const handleCategoryChange = (categoryId: string) => { 
         setSelectedCategoryIds(prev => 
             prev.includes(categoryId)
                 ? prev.filter(id => id !== categoryId)
@@ -68,8 +72,8 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
         );
     };
     
-    // Função auxiliar para aninhar categorias para exibição
-    const getNestedCategories = (cats: CategoryType[], parentId: string | null = null) => { // MUDANÇA: parentId é string | null
+    // Função auxiliar para aninhar categorias
+    const getNestedCategories = (cats: CategoryType[], parentId: string | null = null) => {
         return cats
             .filter(cat => cat.categoria_pai_id === parentId)
             .map(parentCat => ({
@@ -85,49 +89,53 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
     // -----------------------------------------------------------
     const handleSaveProduct = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!title || price <= 0 || !imageUrl || !description || selectedCategoryIds.length === 0) {
+            toast.warning("Preencha todos os campos obrigatórios, incluindo ao menos uma categoria.");
+            return;
+        }
+
         setSaving(true);
 
         // 1. Inserir Produto
         const { data: productData, error: productError } = await supabase
             .from('produtos')
-            // Assumimos que o ID do produto é UUID (string) e gerado no backend ou pelo cliente
             .insert({ 
                 title, 
                 price, 
                 image_url: imageUrl, 
                 description
-                // Você pode precisar adicionar o 'user_id' se sua RLS exigir
+                // Nota: O Supabase deve gerar o UUID do produto automaticamente
             })
-            // Retorna o ID do produto inserido para usar na tabela de categorias
             .select('id')
             .single();
 
-        if (productError) {
-            toast.error(`Falha ao salvar produto: ${productError.message}`);
+        if (productError || !productData) {
+            toast.error(`Falha ao salvar produto: ${productError?.message || 'Erro desconhecido.'}`);
             setSaving(false);
             return;
         }
+        
+        const newProductId = productData.id;
 
         // 2. Inserir Relações Produto-Categoria
-        if (selectedCategoryIds.length > 0) {
-            const relations = selectedCategoryIds.map(catId => ({
-                product_id: productData.id,
-                category_id: catId, // catId é STRING, alinhado à correção de tipagem
-            }));
+        const relations = selectedCategoryIds.map(catId => ({
+            product_id: newProductId,
+            category_id: catId, // catId é STRING, vindo do ID da categoria INT8
+        }));
 
-            const { error: categoryError } = await supabase
-                .from('produtos_categorias')
-                .insert(relations);
+        const { error: categoryError } = await supabase
+            .from('produtos_categorias')
+            .insert(relations);
 
-            if (categoryError) {
-                // Se falhar, o produto é salvo, mas sem categoria. Avisamos o usuário.
-                toast.warning(`Produto salvo, mas falha ao vincular categorias: ${categoryError.message}`);
-            }
+        if (categoryError) {
+            toast.warning(`Produto salvo, mas falha ao vincular categorias: ${categoryError.message}`);
+        } else {
+            toast.success(`Produto '${title}' adicionado com sucesso!`);
         }
         
-        toast.success(`Produto '${title}' adicionado com sucesso!`);
-        onProductAdded();
-        
+        onProductAdded(); // Notifica a página para recarregar a lista
+
         // Limpa o formulário
         setTitle('');
         setPrice(0);
@@ -162,20 +170,21 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
             
             <Input
                 type="url"
-                placeholder="https://exemplo.com/imagem.png"
+                placeholder="URL da Imagem (https://exemplo.com/imagem.png)"
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 required
                 className="bg-gray-800 text-white border-gray-700 placeholder-gray-500"
             />
 
-            {/* ⭐️ SELEÇÃO DE CATEGORIAS (Corrigido para usar strings) ⭐️ */}
+            {/* ⭐️ SELEÇÃO DE CATEGORIAS (Usa nestedCategories) ⭐️ */}
             <div className="space-y-2">
                 <label className="block text-sm font-medium">Categorias* (selecione uma ou mais)</label>
                 <div className="border border-gray-700 p-3 h-48 overflow-y-auto rounded-md bg-gray-900">
                     {loadingCategories ? (
                         <p className='text-gray-500 flex items-center'><Loader2 className='h-4 w-4 mr-2 animate-spin'/> Carregando categorias...</p>
                     ) : nestedCategories.length === 0 ? (
+                        // AQUI deve mostrar 'Nenhuma categoria encontrada' se o array de categorias estiver vazio
                         <p className='text-gray-500'>Nenhuma categoria encontrada. Cadastre em "Categorias".</p>
                     ) : (
                         // Renderização das Categorias
@@ -184,10 +193,9 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
                                 <label className="flex items-center text-white">
                                     <input
                                         type="checkbox"
-                                        // key e checked usam o ID como STRING
                                         checked={selectedCategoryIds.includes(category.id)}
                                         onChange={() => handleCategoryChange(category.id)}
-                                        className="mr-2 h-4 w-4 bg-gray-800 border-gray-600 focus:ring-green-500"
+                                        className="mr-2 h-4 w-4 bg-gray-800 border-gray-600 text-green-500 focus:ring-green-500"
                                     />
                                     {category.name}
                                 </label>
@@ -198,7 +206,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onProductAdded }) => {
                                             type="checkbox"
                                             checked={selectedCategoryIds.includes(subCat.id)}
                                             onChange={() => handleCategoryChange(subCat.id)}
-                                            className="mr-2 h-4 w-4 bg-gray-800 border-gray-600 focus:ring-green-500"
+                                            className="mr-2 h-4 w-4 bg-gray-800 border-gray-600 text-green-500 focus:ring-green-500"
                                         />
                                         {subCat.name} (Sub)
                                     </label>
