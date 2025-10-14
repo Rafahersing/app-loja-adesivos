@@ -4,7 +4,7 @@ export async function onRequestPost(context) {
 
     // Lê o corpo da requisição (JSON)
     const body = await request.json();
-    console.log("🌍 Variáveis de ambiente (parcial):", { SITE_URL: env.SITE_URL, MERCADOPAGO_ACCESS_TOKEN_LENGTH: env.MERCADOPAGO_ACCESS_TOKEN ? env.MERCADOPAGO_ACCESS_TOKEN.length : 'undefined' });
+
     console.log("📥 Body recebido:", body);
 
     // Validação básica
@@ -41,8 +41,6 @@ export async function onRequestPost(context) {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,
-        // Log para depuração do token de acesso (remover em produção)
-        "X-Debug-MercadoPago-Token": env.MERCADOPAGO_ACCESS_TOKEN,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(preferenceBody),
