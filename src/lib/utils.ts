@@ -3,7 +3,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-// Importação necessária para tipagem correta das funções de busca
 import { Product, Category } from "@/types/product"; 
 
 // ----------------------------------------------------
@@ -26,12 +25,12 @@ if (!supabaseInstance) {
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
 }
 
-// ⭐️ EXPORTAÇÃO ÚNICA: Este é o único ponto de exportação do cliente Supabase.
+// ⭐️ EXPORTAÇÃO ÚNICA: Cliente Supabase
 export const supabase = supabaseInstance as SupabaseClient;
 
 
 // ----------------------------------------------------
-// FUNÇÕES DE BUSCA DE DADOS (Centralizado conforme padrões)
+// FUNÇÕES DE BUSCA DE DADOS (AGORA COMPLETAS)
 // ----------------------------------------------------
 
 // Função para buscar categorias (Usada tanto no Admin quanto na Loja)
@@ -45,7 +44,7 @@ export const fetchCategories = async (): Promise<Category[]> => {
         throw new Error(`[ERRO SUPABASE - CATEGORIAS]: ${error.message}`);
     } 
     
-    // CRÍTICO: Converte bigint IDs para string
+    // Converte bigint IDs para string
     return data.map(item => ({
         id: String(item.id), 
         name: item.nome, 
@@ -54,13 +53,10 @@ export const fetchCategories = async (): Promise<Category[]> => {
 };
 
 
-// ⭐️ FUNÇÃO CORRIGIDA PARA BUSCA DE PRODUTOS ⭐️
-// Corrige o erro "column produtos.category_id does not exist" usando JOIN.
+// Função para buscar produtos (Usada na página Shop)
 export const fetchProducts = async (): Promise<Product[]> => {
-    // A consulta usa a sintaxe de JOIN para trazer as categorias aninhadas
     const { data, error } = await supabase
         .from('produtos')
-        // Seleciona colunas de 'produtos' e faz o JOIN via 'produtos_categorias'
         .select(`
             id, 
             titulo, 
@@ -75,7 +71,6 @@ export const fetchProducts = async (): Promise<Product[]> => {
                 )
             )
         `)
-        // Filtra apenas produtos ativos
         .eq('ativo', true) 
         .order('id', { ascending: true });
 
@@ -87,12 +82,11 @@ export const fetchProducts = async (): Promise<Product[]> => {
 
     // Formata o resultado para um objeto Product mais limpo
     const formattedProducts: Product[] = data.map((item: any) => ({
-        id: String(item.id), // CRÍTICO: Converte bigint para string
+        id: String(item.id), 
         titulo: item.titulo,
         descricao: item.descricao,
         preco: item.preco,
         url_imagem: item.url_imagem,
-        // EXTRAI e simplifica a lista de categorias do objeto de JOIN
         categories: item.produtos_categorias.map((pc: any) => ({
             id: String(pc.categorias.id),
             name: pc.categorias.nome,
@@ -100,6 +94,54 @@ export const fetchProducts = async (): Promise<Product[]> => {
     } as Product));
 
     return formattedProducts;
+};
+
+
+// ⭐️ FUNÇÃO ADICIONADA: fetchProductById ⭐️
+// Corrige o erro de exportação e usa o padrão de JOIN.
+export const fetchProductById = async (productId: string): Promise<Product | null> => {
+    const { data, error } = await supabase
+        .from('produtos')
+        .select(`
+            id, 
+            titulo, 
+            descricao, 
+            preco, 
+            url_imagem, 
+            ativo,
+            produtos_categorias!inner(
+                categorias(
+                    id, 
+                    nome
+                )
+            )
+        `)
+        .eq('id', productId) // Filtra pelo ID do produto
+        .single(); // Espera apenas um produto
+
+    if (error) {
+        // Note: Se o produto não for encontrado, o erro do .single() será pego aqui.
+        console.error(`[ERRO SUPABASE - PRODUTO ID ${productId}]: ${error.message}`);
+        return null;
+    }
+
+    if (!data) return null;
+
+    // Formata o resultado para um objeto Product
+    const formattedProduct: Product = {
+        id: String(data.id), // Converte bigint para string
+        titulo: data.titulo,
+        descricao: data.descricao,
+        preco: data.preco,
+        url_imagem: data.url_imagem,
+        // Extrai as categorias
+        categories: data.produtos_categorias.map((pc: any) => ({
+            id: String(pc.categorias.id),
+            name: pc.categorias.nome,
+        })) as Category[],
+    } as Product;
+
+    return formattedProduct;
 };
 
 
