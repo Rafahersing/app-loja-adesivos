@@ -33,7 +33,7 @@ export const supabase = supabaseInstance as SupabaseClient;
 // FUNÇÕES DE BUSCA DE DADOS (AGORA COMPLETAS)
 // ----------------------------------------------------
 
-// Função para buscar categorias (Usada tanto no Admin quanto na Loja)
+// Função para buscar categorias
 export const fetchCategories = async (): Promise<Category[]> => {
     const { data, error } = await supabase
         .from('categorias')
@@ -53,7 +53,7 @@ export const fetchCategories = async (): Promise<Category[]> => {
 };
 
 
-// Função para buscar produtos (Usada na página Shop)
+// Função para buscar todos os produtos ativos (Usada na página Shop)
 export const fetchProducts = async (): Promise<Product[]> => {
     const { data, error } = await supabase
         .from('produtos')
@@ -80,7 +80,6 @@ export const fetchProducts = async (): Promise<Product[]> => {
 
     if (!data) return [];
 
-    // Formata o resultado para um objeto Product mais limpo
     const formattedProducts: Product[] = data.map((item: any) => ({
         id: String(item.id), 
         titulo: item.titulo,
@@ -96,9 +95,7 @@ export const fetchProducts = async (): Promise<Product[]> => {
     return formattedProducts;
 };
 
-
-// ⭐️ FUNÇÃO ADICIONADA: fetchProductById ⭐️
-// Corrige o erro de exportação e usa o padrão de JOIN.
+// Função para buscar um produto por ID (Usada na página Product)
 export const fetchProductById = async (productId: string): Promise<Product | null> => {
     const { data, error } = await supabase
         .from('produtos')
@@ -116,25 +113,22 @@ export const fetchProductById = async (productId: string): Promise<Product | nul
                 )
             )
         `)
-        .eq('id', productId) // Filtra pelo ID do produto
-        .single(); // Espera apenas um produto
+        .eq('id', productId) 
+        .single(); 
 
     if (error) {
-        // Note: Se o produto não for encontrado, o erro do .single() será pego aqui.
         console.error(`[ERRO SUPABASE - PRODUTO ID ${productId}]: ${error.message}`);
         return null;
     }
 
     if (!data) return null;
 
-    // Formata o resultado para um objeto Product
     const formattedProduct: Product = {
-        id: String(data.id), // Converte bigint para string
+        id: String(data.id), 
         titulo: data.titulo,
         descricao: data.descricao,
         preco: data.preco,
         url_imagem: data.url_imagem,
-        // Extrai as categorias
         categories: data.produtos_categorias.map((pc: any) => ({
             id: String(pc.categorias.id),
             name: pc.categorias.nome,
@@ -145,16 +139,66 @@ export const fetchProductById = async (productId: string): Promise<Product | nul
 };
 
 
+// ⭐️ NOVA FUNÇÃO ADICIONADA: fetchFavoriteProducts ⭐️
+// Corrige o erro de exportação para a página de favoritos.
+export const fetchFavoriteProducts = async (userId: string): Promise<Product[]> => {
+    // Busca a lista de favoritos do usuário e faz JOIN com a tabela de produtos
+    const { data, error } = await supabase
+        .from('favoritos')
+        .select(`
+            produtos!inner( 
+                id, 
+                titulo, 
+                descricao, 
+                preco, 
+                url_imagem, 
+                ativo,
+                produtos_categorias!inner( 
+                    categorias(
+                        id, 
+                        nome
+                    )
+                )
+            )
+        `)
+        // Filtra pelo ID do usuário e garante que o produto está ativo
+        .eq('user_id', userId)
+        .eq('produtos.ativo', true); 
+
+    if (error) {
+        throw new Error(`[ERRO SUPABASE - FAVORITOS]: ${error.message}`);
+    }
+    
+    if (!data) return [];
+    
+    // Mapeia o resultado para extrair o objeto 'produtos' e formatar as categorias
+    const formattedProducts: Product[] = data
+        .map((favItem: any) => favItem.produtos) 
+        .filter((p: any) => p) // Remove qualquer resultado nulo
+        .map((item: any) => ({
+            id: String(item.id), 
+            titulo: item.titulo,
+            descricao: item.descricao,
+            preco: item.preco,
+            url_imagem: item.url_imagem,
+            categories: item.produtos_categorias.map((pc: any) => ({
+                id: String(pc.categorias.id),
+                name: pc.categorias.nome,
+            })) as Category[],
+        } as Product));
+
+    return formattedProducts;
+};
+
+
 // ----------------------------------------------------
 // OUTRAS FUNÇÕES DE UTILIDADE
 // ----------------------------------------------------
 
-// Função cn (para utilitários de classe com clsx e twMerge)
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Função slugify (muito usada em seu ProductImportComponent)
 export const slugify = (text: string): string => {
     if (!text) return '';
     return text
